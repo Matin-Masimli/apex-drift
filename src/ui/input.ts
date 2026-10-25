@@ -6,7 +6,9 @@ import { neutralInput, type DriverInput } from '../vehicles/types';
  * and drained once per frame.
  */
 
-export type UiAction = 'camera' | 'reset' | 'debug' | 'toggleAbs' | 'toggleTc' | 'toggleEsc' | 'toggleGearbox' | 'timeOfDay';
+export type UiAction =
+  | 'camera' | 'reset' | 'debug' | 'toggleAbs' | 'toggleTc' | 'toggleEsc' | 'toggleGearbox' | 'timeOfDay'
+  | 'quality' | 'replay' | 'hideHint';
 
 export interface KeyBindings {
   throttle: string[];
@@ -36,6 +38,9 @@ export const DEFAULT_KEYS: KeyBindings = {
     toggleEsc: ['Digit3'],
     toggleGearbox: ['KeyM'],
     timeOfDay: ['KeyT'],
+    quality: ['KeyG'],
+    replay: ['KeyP'],
+    hideHint: ['KeyH'],
   },
 };
 

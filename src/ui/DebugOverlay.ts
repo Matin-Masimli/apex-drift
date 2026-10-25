@@ -34,7 +34,7 @@ export class DebugOverlay {
     this.el.hidden = !this.visible;
   }
 
-  update(v: Vehicle, dt: number, stats: { fps: number; physicsMs: number }): void {
+  update(v: Vehicle, dt: number, stats: { fps: number; physicsMs: number; drawCalls?: number; triangles?: number; quality?: string }): void {
     if (!this.visible) return;
     this.drawCircles(v);
     this.textTimer -= dt;
@@ -61,6 +61,9 @@ export class DebugOverlay {
       s += `${WHEEL_NAMES[i]}   ${f(w.load, 0, 7)} ${f(w.slipRatio, 2, 6)} ${f(w.slipAngle / DEG, 1, 7)}  ${f(w.gripUsed * 100, 0, 3)}%  ${f(comp * 100, 0, 3)}% ${f(w.omega, 1, 8)} ${f(w.driveTorque, 0, 6)} ${f(w.brakeTorque, 0, 6)}  ${w.grounded ? SURFACES[w.surface].name : 'AIR'}${w.absFactor < 0.95 ? ' ABS' : ''}\n`;
     });
     s += `\nfps ${f(stats.fps, 0, 4)}   physics ${stats.physicsMs.toFixed(2)} ms/frame`;
+    if (stats.drawCalls !== undefined) {
+      s += `\ndraw calls ${stats.drawCalls}   triangles ${((stats.triangles ?? 0) / 1000).toFixed(0)}k   graphics ${stats.quality}`;
+    }
     this.text.textContent = s;
   }
 

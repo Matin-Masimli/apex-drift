@@ -16,6 +16,8 @@ const SLIP_SPEED_FLOOR = 3;
 const AIR_DENSITY = 1.225;
 const GRAVITY = 9.81;
 const BUMP_STOP_STIFFNESS_MUL = 12;
+/** Wheel ray positions along the contact patch, as fractions of the wheel radius. */
+const RAY_OFFSETS = [0, -0.55, 0.55];
 
 export const WHEEL_NAMES = ['FL', 'FR', 'RL', 'RR'] as const;
 
@@ -109,6 +111,16 @@ export interface AidsActivity {
   esc: boolean;
 }
 
+/** A chassis contact from the last physics step (walls, other cars). */
+export interface VehicleImpact {
+  point: Vec3;
+  normal: Vec3;
+  /** Contact impulse (N·s): impact strength. */
+  impulse: number;
+  /** Chassis speed at the contact point (m/s), for scrape effects. */
+  speed: number;
+}
+
 /**
  * The vehicle simulation: a Rapier rigid body for the chassis, plus our own
  * ray-cast suspension, tire model, drivetrain, aero and driver aids.
@@ -118,7 +130,10 @@ export interface AidsActivity {
  */
 export class Vehicle {
   readonly body: RAPIER.RigidBody;
+  readonly collider: RAPIER.Collider;
   readonly wheels: WheelState[];
+  /** Chassis contacts accumulated since the last `drainImpacts()`. */
+  private impacts: VehicleImpact[] = [];
   readonly powertrain: Powertrain;
   readonly aids: AidsState;
   readonly aidsActive: AidsActivity = { abs: false, tc: false, esc: false };
@@ -233,7 +248,36 @@ export class Vehicle {
       .setMassProperties(m, colliderCom, inertia, { x: 0, y: 0, z: 0, w: 1 })
       .setFriction(0.35)
       .setRestitution(0.15);
-    physics.world.createCollider(colDesc, this.body);
+    this.collider = physics.world.createCollider(colDesc, this.body);
+  }
+
+  /** Read chassis contact manifolds produced by the last world step. */
+  private collectContacts(): void {
+    const world = this.physics.world;
+    world.contactPairsWith(this.collider, other => {
+      world.contactPair(this.collider, other, (manifold, flipped) => {
+        const nc = manifold.numSolverContacts();
+        if (nc === 0) return;
+        let impulse = 0;
+        for (let i = 0; i < manifold.numContacts(); i++) impulse += manifold.contactImpulse(i);
+        const p = manifold.solverContactPoint(0);
+        if (!p) return;
+        const n = manifold.normal();
+        const sgn = flipped ? -1 : 1;
+        const point = new Vec3(p.x, p.y, p.z);
+        const v = this.body.velocityAtPoint(point);
+        if (this.impacts.length < 32) {
+          this.impacts.push({ point, normal: new Vec3(n.x * sgn, n.y * sgn, n.z * sgn), impulse, speed: Math.hypot(v.x, v.y, v.z) });
+        }
+      });
+    });
+  }
+
+  /** Take all chassis impacts since the last call (renderer: sparks; audio: crash sounds). */
+  drainImpacts(): VehicleImpact[] {
+    const out = this.impacts;
+    this.impacts = [];
+    return out;
   }
 
   /** Total road-wheel angle limit at the current speed, with a countersteer allowance. */
@@ -333,6 +377,8 @@ export class Vehicle {
     const c = this.config;
     const body = this.body;
 
+    this.collectContacts();
+
     // ---------- Chassis state ----------
     this.q.copy(body.rotation());
     this.pos.copy(body.translation());
@@ -364,12 +410,26 @@ export class Vehicle {
     this.updateGearbox(input, dt);
 
     // ---------- Suspension: ray casts and spring/damper forces ----------
+    // Each wheel casts three rays across its contact patch (behind, centre, ahead). A ray at
+    // longitudinal offset x meets the tire's circular profile sqrt(R² − x²) below the axle, so it
+    // implies a suspension length of (hit distance − sqrt(R² − x²)). The shortest one wins, which
+    // makes the wheel roll up onto a curb edge instead of snapping onto it when the centre ray crosses.
     this.rayDir.copy(this.up).scale(-1);
     for (const w of this.wheels) {
-      this.rayOrigin.copy(w.mountLocal).applyQuat(this.q).add(this.pos);
-      const maxDist = w.susp.restLength + w.wheel.radius;
-      const hit = this.physics.castWheelRay(this.rayOrigin, this.rayDir, maxDist, body);
-      if (!hit) {
+      const R = w.wheel.radius;
+      let bestLength = Infinity;
+      for (const xf of RAY_OFFSETS) {
+        const x = xf * R;
+        const drop = Math.sqrt(R * R - x * x);
+        this.rayOrigin.copy(w.mountLocal).applyQuat(this.q).add(this.pos).addScaled(this.fwdBody, x);
+        const hit = this.physics.castWheelRay(this.rayOrigin, this.rayDir, w.susp.restLength + drop, body);
+        if (!hit || hit.distance - drop >= bestLength) continue;
+        bestLength = hit.distance - drop;
+        w.surface = hit.surface;
+        w.contactNormal.copy(hit.normal);
+        w.contactPoint.copy(this.rayOrigin).addScaled(this.rayDir, hit.distance);
+      }
+      if (bestLength === Infinity) {
         w.grounded = false;
         w.load = 0;
         w.updateCompression(0, dt);
@@ -377,11 +437,8 @@ export class Vehicle {
         continue;
       }
       w.grounded = true;
-      w.surface = hit.surface;
-      w.contactNormal.copy(hit.normal);
-      w.contactPoint.copy(this.rayOrigin).addScaled(this.rayDir, hit.distance);
 
-      const rawLength = hit.distance - w.wheel.radius;
+      const rawLength = bestLength;
       const rawCompression = w.susp.restLength - rawLength;
       const compression = clamp(rawCompression, 0, w.susp.maxCompression);
       w.suspensionLength = w.susp.restLength - compression;

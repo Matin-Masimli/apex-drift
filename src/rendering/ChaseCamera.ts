@@ -22,6 +22,11 @@ export class ChaseCamera {
     this.camera = new THREE.PerspectiveCamera(62, aspect, 0.1, 6000);
   }
 
+  /** Jump straight to the target next frame (after a reset, replay or camera switch) instead of easing. */
+  snap(): void {
+    this.initialised = false;
+  }
+
   cycle(): void {
     this.mode = CAMERA_MODES[(CAMERA_MODES.indexOf(this.mode) + 1) % CAMERA_MODES.length];
   }
@@ -37,7 +42,8 @@ export class ChaseCamera {
         const velHeading = Math.atan2(-velocity.x, -velocity.z);
         heading = lerpAngle(heading, velHeading, 0.35);
       }
-      if (!this.initialised) { this.yaw = heading; this.initialised = true; }
+      const first = !this.initialised;
+      if (first) this.yaw = heading;
       this.yaw = lerpAngle(this.yaw, heading, 1 - Math.exp(-5 * dt));
 
       const dist = 6.2 + Math.min(speedMs, 80) * 0.012;
@@ -45,8 +51,9 @@ export class ChaseCamera {
       this.tmp.set(-Math.sin(this.yaw) * -dist, height, -Math.cos(this.yaw) * -dist);
       const desired = this.tmp.add(carPos);
       // Positional smoothing is light: heading smoothing does the heavy lifting.
-      this.pos.lerp(desired, 1 - Math.exp(-14 * dt));
-      if (this.pos.distanceTo(desired) > 30) this.pos.copy(desired); // after a reset
+      if (first) this.pos.copy(desired);
+      else this.pos.lerp(desired, 1 - Math.exp(-14 * dt));
+      this.initialised = true;
       cam.position.copy(this.pos);
       this.look.copy(carPos).add(this.tmp.set(0, 1.0, 0)).addScaledVector(this.fwd, 2.5);
       cam.lookAt(this.look);

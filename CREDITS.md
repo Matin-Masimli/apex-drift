@@ -8,7 +8,7 @@ runtime ([src/rendering/proceduralTextures.ts](src/rendering/proceduralTextures.
 
 | Package | Version | License | Source | Used for |
 |---|---|---|---|---|
-| three | 0.186.1 | MIT | https://github.com/mrdoob/three.js | Rendering. Includes the `Sky` and `RoundedBoxGeometry` addons from `three/examples/jsm` (same MIT license). |
+| three | 0.186.1 | MIT | https://github.com/mrdoob/three.js | Rendering. Includes these addons from `three/examples/jsm` (same MIT license): `Sky`, `RoundedBoxGeometry`, `CSM`, `EffectComposer`, `RenderPass`, `GTAOPass`, `UnrealBloomPass`, `ShaderPass`, `OutputPass` and `BufferGeometryUtils`. |
 | @dimforge/rapier3d-compat | 0.21.0 | Apache-2.0 | https://github.com/dimforge/rapier | Rigid-body physics, collision, ray casts |
 
 ## Development dependencies (not shipped)
@@ -26,3 +26,7 @@ runtime ([src/rendering/proceduralTextures.ts](src/rendering/proceduralTextures.
 - Pacejka "magic formula" tire model: H. B. Pacejka, *Tire and Vehicle Dynamics*.
 - Fixed-timestep accumulator with render interpolation: the widely documented "Fix Your Timestep" pattern.
 - Bicycle-model yaw-rate reference for stability control: standard vehicle-dynamics texts.
+- Centripetal Catmull-Rom parameterisation and Barry–Goldman evaluation: standard spline literature.
+
+All track names, circuit layouts, sponsor names on billboards ("Voltar Fuels", "Northwind Tyres") and car
+names are invented for this project.

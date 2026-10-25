@@ -52,3 +52,46 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0d10; col
   position: fixed; left: 12px; bottom: 12px; font: 12px/1.5 var(--mono); opacity: 0.75; background: var(--panel);
   padding: 8px 10px; border-radius: 6px; pointer-events: none; white-space: pre;
 }
+
+/* Lap timing panel */
+.lap-hud {
+  position: fixed; right: 20px; top: 20px; width: 250px; background: var(--panel); border-radius: 8px;
+  padding: 12px 14px; pointer-events: none; font-variant-numeric: tabular-nums; backdrop-filter: blur(4px);
+}
+.lap-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.lap-row.small { font: 13px var(--mono); opacity: 0.85; margin-top: 2px; }
+.lap-label { font-size: 12px; letter-spacing: 0.15em; opacity: 0.7; }
+.lap-num { font-size: 22px; font-weight: 800; margin-right: auto; }
+.lap-invalid { font: 700 11px var(--mono); color: #ff5050; border: 1px solid #ff5050; padding: 1px 5px; border-radius: 3px; }
+.lap-cur { font: 700 30px var(--mono); margin: 2px 0 8px; }
+.lap-sectors { display: flex; gap: 4px; margin-bottom: 8px; }
+.sector { flex: 1; font: 10px var(--mono); text-align: center; padding: 3px 0; border-radius: 3px; background: rgba(255,255,255,0.08); opacity: 0.8; }
+.sector b { display: block; font-size: 12px; }
+.sector.current { outline: 1px solid rgba(255,255,255,0.5); }
+.sector.done { background: rgba(255,255,255,0.18); }
+.sector.faster { background: #1c9a4a; opacity: 1; }
+.sector.slower { background: #b38a10; opacity: 1; }
+
+/* Minimap */
+.minimap { position: fixed; left: 16px; bottom: 16px; width: 180px; height: 180px; pointer-events: none; opacity: 0.92; }
+.hint { left: 210px; transition: opacity 0.6s; }
+.hint.faded { opacity: 0; }
+
+/* Centre toast + banner */
+.toast {
+  position: fixed; left: 50%; top: 22%; transform: translateX(-50%); font: 700 22px var(--sans); letter-spacing: 0.04em;
+  padding: 8px 18px; border-radius: 6px; background: var(--panel); opacity: 0; transition: opacity 0.25s; pointer-events: none;
+}
+.toast.show { opacity: 1; }
+.toast.best { color: #c86bff; }
+.toast.bad { color: #ff6060; }
+.banner {
+  position: fixed; left: 50%; top: 10%; transform: translateX(-50%); font: 800 italic 44px var(--sans);
+  letter-spacing: 0.12em; opacity: 0; pointer-events: none; text-shadow: 0 3px 12px rgba(0,0,0,0.6); transition: opacity 0.2s;
+}
+.banner.show { opacity: 1; }
+.banner.lights { color: #ff2a2a; letter-spacing: 0.3em; }
+.banner.go { color: #3dff7a; }
+.banner.replay { font-size: 22px; top: 4%; color: var(--ink); background: rgba(200,20,20,0.85); padding: 4px 16px; border-radius: 4px; font-style: normal; }
+/* Replay: hide the driving HUD, keep the banner. */
+body.replaying .hud, body.replaying .lap-hud, body.replaying .minimap, body.replaying .hint, body.replaying .toast { display: none; }

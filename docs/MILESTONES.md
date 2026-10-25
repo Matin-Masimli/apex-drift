@@ -85,3 +85,109 @@
 - Checkpoints, lap and sector timing, start grid.
 - Cascaded shadows, post-processing (bloom, AO, speed blur), and Low/Medium/High/Ultra presets.
 - Cinematic replay camera.
+
+---
+
+## M2: Circuit, lap timing, cameras, graphics pipeline ✅
+
+**Runs:** `npm run dev` opens the circuit. `npm test` passes (typecheck, bench, track build, 2-lap autopilot). `npm run build` passes.
+
+### What was done
+
+**Track format** ([src/tracks/types.ts](../src/tracks/types.ts), [Track.ts](../src/tracks/Track.ts), [spline.ts](../src/tracks/spline.ts))
+- A circuit is one data object: a closed centripetal Catmull-Rom centreline, resampled every 2 m.
+- Everything is generated from it headless, so the server gets the identical collision world:
+  - road (with wet patches), auto-placed curbs from curvature, grass shoulders, gravel and tarmac runoff;
+  - barriers, with inside-of-corner clamping so offset curves never fold over;
+  - terrain that hugs the track and blends into procedural hills.
+- Positions can reference control points (`at(cp, offset)`), so details stay attached to corners when the layout changes.
+
+**Kestrel Valley Circuit** (original)
+- 2,752 m, clockwise, 18 m elevation change.
+- Main features:
+  - a 540 m straight;
+  - T1 right-hander and climbing ridge esses;
+  - downhill right-left;
+  - kink plus a 19 m-radius hairpin;
+  - the Mill chicane and the final corner.
+- Scenery and props: gantry with five start lights, three grandstands, billboards with invented sponsors, brake boards, a tire wall, marshal posts and 1,800 trees.
+
+**Lap timing** ([LapTimer.ts](../src/tracks/LapTimer.ts), headless)
+- Laps and 3 sectors, with line crossings interpolated within the physics step.
+- Laps only count after passing 12 checkpoints in order, so shortcuts and reversing over the line don't count.
+- Track limits invalidate the lap (car centre beyond the curb plus ~1.3 m).
+- Best-sector tracking and wrong-way detection.
+- Standing start: five lights, then lights out; the car is held on the handbrake until GO.
+
+**Graphics pipeline** ([Graphics.ts](../src/rendering/Graphics.ts), [quality.ts](../src/rendering/quality.ts))
+- Cascaded shadow maps: 1–4 cascades with fade.
+- GTAO ambient occlusion, at half resolution on High.
+- Bloom with an exposure-aware threshold.
+- Speed-scaled radial blur.
+- ACES tone mapping via OutputPass, MSAA on an HDR target, distance fog, sky IBL.
+- Four presets, switched live with G:
+
+| Preset | Draw calls | Triangles |
+|---|---|---|
+| Low | 100 | 226k |
+| Medium | 142 | 279k |
+| High | 346 | 716k |
+| Ultra | 428 | 828k |
+
+**Effects** ([rendering/effects](../src/rendering/effects))
+- Skid marks: one ring buffer of 8,000 quads, coloured per surface.
+- One CPU particle system each for smoke/dust/grass/spray and for sparks/flames:
+  - tire smoke from slip speed;
+  - gravel dust and stones, grass clippings, wet spray;
+  - sparks from real chassis contact impulses (Rapier manifolds);
+  - exhaust flames on downshifts and high-rpm overrun.
+
+**Replays and cameras**
+- A snapshot format (23 floats per frame) now drives the car visual for live, replay and, later, ghost and network cars.
+- The recorder keeps the last 90 s at 60 Hz.
+- Replay (P): TV director with trackside cameras placed on the outside of corners, auto-zoom to keep the car framed, and periodic helicopter shots. The HUD is hidden during replay.
+
+**Physics**
+- Three rays per wheel across the contact patch: each ray is corrected for the tire's circular profile, so wheels roll up onto curb edges.
+- Fixes the M1 known issue. The sharp-step jolt drops from 4.2 g to 4.0 g on a 6 cm slab; the circuit's sloped curbs are gentler.
+
+**HUD**
+- Lap panel: lap, current, last and best times, sector boxes coloured faster/slower.
+- Centre toasts, minimap.
+- Debug overlay now shows draw calls, triangles and the current preset.
+
+### Test results
+
+| Test | Result |
+|---|---|
+| Track build (headless) | 405 ms, 0 barrier gaps |
+| Autopilot laps (conservative, ~113 km/h average) | 89.8 s from the grid, 87.4 s flying lap, max lateral deviation 2.8 m, 221 km/h top |
+| Render cost at 800×600 in the preview pane | 2.5–5 ms per frame on every preset |
+
+The 1080p, mid-range-GPU target from the spec has not been measured. That is part of the M6 performance pass.
+
+### Bugs found and fixed during M2
+
+- **Bloom washed the screen white.** Bloom runs on HDR values before tone mapping, and with the low exposure the physical sky needs, the whole sky crossed a 0.92 threshold. The threshold now scales with exposure, and emissive lights were boosted so they still bloom.
+- **Start lights engaged reverse.** Holding the car on the brake pedal during the start lights triggered auto-reverse at a standstill. The car is now held on the handbrake.
+- **High preset issued 1,260 draw calls.** Every small prop and car part was its own draw in every pass (color, shadow cascades, AO). Static props, the car body and wheel parts are now merged per material, and trees are chunked more coarsely: 346 draw calls.
+- **Render stats were wrong.** Post-processing reset the counters, so they reported 1 call. They now accumulate per frame.
+
+### Known issues
+
+- **Untested at full window size.** Everything was checked in a hidden, throttled preview pane, so real-time driving feel and frame pacing at 1080p are unverified. Please drive it.
+- **Stand-in car model.** The procedural car still looks pale under midday sun (paint and clearcoat tuning). M3 replaces it with proper bodies, metallic flake and liveries.
+- **Grandstand crowd.** The crowd texture sits on the seat tops, so the stands read as plain concrete from track level. It should move to the riser faces (M6 polish).
+- **Recover without a respawn delay.** Recover (R) puts the car on the centreline at its nearest point. It has no ghosting/no-collide window yet; that is needed for multiplayer (M5).
+- **CSM is single-camera.** Split-screen (M5) will need either one CSM per view or a simpler shadow setup for the second view.
+- **Replay shows only your car.** It plays back the last 60 s of the player's car. Multi-car replays come with AI (M4).
+- **Old 404s in the console.** The console shows four 404s from earlier dev-server reloads. No current page resource fails (all load 200); the favicon request is fixed.
+- **Large bundle.** The production bundle is 5.1 MB (1.86 MB gzipped), mostly Rapier's inline WASM. To be handled in the M6 performance pass.
+
+### Next (M3)
+
+- The 6-car roster with distinct handling: formula, GT, rally AWD, muscle RWD, hypercar, FWD hatch.
+- Per-class parametric procedural bodies.
+- Car paint with clearcoat and metallic flake, plus 4 colours and 1 livery per car.
+- Working headlights for sunset.
+- Showroom car select with a rotating 3D view, stat bars and depth of field.

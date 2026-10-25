@@ -3,6 +3,7 @@ import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.j
 import type { CarConfig } from '../vehicles/types';
 import type { Vehicle } from '../vehicles/Vehicle';
 import { tireTexture } from './proceduralTextures';
+import { mergeByMaterial } from './mergeByMaterial';
 
 /**
  * M1 procedural car: a sculpted body (deformed rounded boxes), cabin glass, rear wing, lights,
@@ -16,6 +17,8 @@ export class CarVisual {
   readonly root = new THREE.Group();
   readonly paint: THREE.MeshPhysicalMaterial;
   private readonly wheelRigs: { root: THREE.Group; steer: THREE.Group; spin: THREE.Group }[] = [];
+  /** Wheel mount points in the car frame (from the sim's suspension geometry). */
+  private readonly mounts: THREE.Vector3[] = [];
   private readonly brakeLightMat: THREE.MeshStandardMaterial;
   private readonly headLightMat: THREE.MeshStandardMaterial;
 
@@ -76,6 +79,10 @@ export class CarVisual {
     }
     addMesh(body, new THREE.BoxGeometry(width * 0.86, 0.06, 0.05), this.brakeLightMat, 0, 0.7, length / 2 - 0.01, false);
 
+    // Bake the static body parts into one mesh per material (paint, glass, carbon, lights).
+    this.root.remove(body);
+    this.root.add(mergeByMaterial(body));
+
     // Wheels.
     const rubber = new THREE.MeshStandardMaterial({ color: 0xffffff, map: tireTexture(), roughness: 0.92, metalness: 0 });
     const rimMat = new THREE.MeshStandardMaterial({ color: 0x9aa0a8, metalness: 1, roughness: 0.28 });
@@ -113,23 +120,33 @@ export class CarVisual {
       caliper.position.set(side * W * 0.18, R * 0.42, R * 0.22);
       steer.add(caliper);
 
+      // Merge the rotating parts (tire, rim, spokes, disc) into one mesh per material.
+      const spinMerged = mergeByMaterial(spin);
+      steer.remove(spin);
+      steer.add(spinMerged);
       this.root.add(root);
-      this.wheelRigs.push({ root, steer, spin });
+      this.wheelRigs.push({ root, steer, spin: spinMerged });
+      this.mounts.push(new THREE.Vector3(w.mountLocal.x, w.mountLocal.y, w.mountLocal.z));
     }
   }
 
-  /** Update wheel rigs and lights from the sim. Pose interpolation is done by the caller on `root`. */
-  updateFromSim(vehicle: Vehicle): void {
-    vehicle.wheels.forEach((w, i) => {
+  /**
+   * Pose the whole car from a packed snapshot (see vehicles/snapshot.ts): chassis transform, wheel
+   * suspension/steer/spin, and brake lights. Live, replay, ghost and network cars all go through here.
+   */
+  applySnapshot(s: Float32Array): void {
+    this.root.position.set(s[0], s[1], s[2]);
+    this.root.quaternion.set(s[3], s[4], s[5], s[6]);
+    for (let i = 0; i < 4; i++) {
       const rig = this.wheelRigs[i];
-      rig.root.position.set(w.mountLocal.x, w.mountLocal.y - w.suspensionLength, w.mountLocal.z);
+      const m = this.mounts[i];
+      rig.root.position.set(m.x, m.y - s[7 + i * 3], m.z);
       // Sim steer angle is + to the right; a +Y rotation turns -Z toward -X (left), hence the minus.
-      rig.steer.rotation.y = -w.steerAngle;
+      rig.steer.rotation.y = -s[8 + i * 3];
       // Rolling forward (toward -Z) is a negative rotation about +X.
-      rig.spin.rotation.x = -w.spinAngle;
-    });
-    const braking = vehicle.appliedBrake > 0.05 || vehicle.appliedHandbrake > 0.05;
-    this.brakeLightMat.emissiveIntensity = braking ? 4 : 0.5;
+      rig.spin.rotation.x = -s[9 + i * 3];
+    }
+    this.brakeLightMat.emissiveIntensity = s[19] > 0.5 ? 45 : 2.5;
   }
 
   setPaint(color: number): void {
