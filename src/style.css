@@ -1,0 +1,54 @@
+:root {
+  --accent: #ff5a1f;
+  --ink: #f4f4f0;
+  --panel: rgba(10, 12, 16, 0.72);
+  --mono: ui-monospace, 'Cascadia Mono', 'Consolas', monospace;
+  --sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0d10; color: var(--ink); font-family: var(--sans); }
+#app canvas { display: block; }
+
+/* Loading screen */
+#loading {
+  position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 18px; background: radial-gradient(circle at 50% 40%, #1b2028, #07080a); z-index: 10; transition: opacity 0.4s;
+}
+#loading.done { opacity: 0; pointer-events: none; }
+#loading .logo { font-size: 56px; font-weight: 800; letter-spacing: 0.12em; font-style: italic; }
+#loading .logo span { color: var(--accent); margin-left: 0.25em; }
+#loading .bar { width: min(360px, 70vw); height: 4px; background: #222; border-radius: 2px; overflow: hidden; }
+#loading .fill { height: 100%; width: 0; background: var(--accent); transition: width 0.2s; }
+#loading .status { font-size: 13px; opacity: 0.7; font-family: var(--mono); }
+
+/* HUD */
+.hud { position: fixed; right: 28px; bottom: 24px; width: 280px; pointer-events: none; text-shadow: 0 2px 6px rgba(0,0,0,0.6); }
+.hud-rev { height: 8px; background: rgba(255,255,255,0.15); border-radius: 4px; overflow: hidden; margin-bottom: 6px; }
+.hud-rev-fill { height: 100%; width: 0; background: linear-gradient(90deg, #4fd1ff, #ffd24f 70%, #ff4f4f); }
+.hud-rev-fill.shift { animation: shift-flash 0.12s steps(2) infinite; }
+@keyframes shift-flash { 50% { filter: brightness(2.2); } }
+.hud-row { display: flex; align-items: baseline; gap: 8px; }
+.hud-speed { font-size: 64px; font-weight: 800; font-style: italic; font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
+.hud-unit { font-size: 14px; opacity: 0.7; }
+.hud-gear { margin-left: auto; font-size: 48px; font-weight: 800; color: var(--accent); }
+.hud-gear.manual::after { content: 'M'; font-size: 14px; vertical-align: top; margin-left: 2px; color: var(--ink); opacity: 0.7; }
+.hud-aids { display: flex; gap: 6px; margin-top: 4px; justify-content: flex-end; }
+.aid { font-family: var(--mono); font-size: 11px; padding: 2px 6px; border-radius: 3px; border: 1px solid rgba(255,255,255,0.3); }
+.aid.off { opacity: 0.35; text-decoration: line-through; }
+.aid.active { background: #ffb020; color: #000; border-color: #ffb020; }
+
+/* Debug overlay */
+.debug-overlay {
+  position: fixed; left: 12px; top: 12px; display: flex; gap: 12px; align-items: flex-start;
+  background: var(--panel); padding: 10px 12px; border-radius: 6px; pointer-events: none; backdrop-filter: blur(4px);
+}
+[hidden] { display: none !important; }
+.debug-overlay pre { margin: 0; font: 12px/1.35 var(--mono); white-space: pre; }
+.debug-circles { width: 150px; height: 150px; }
+
+/* Controls hint */
+.hint {
+  position: fixed; left: 12px; bottom: 12px; font: 12px/1.5 var(--mono); opacity: 0.75; background: var(--panel);
+  padding: 8px 10px; border-radius: 6px; pointer-events: none; white-space: pre;
+}
