@@ -95,3 +95,43 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0d10; col
 .banner.replay { font-size: 22px; top: 4%; color: var(--ink); background: rgba(200,20,20,0.85); padding: 4px 16px; border-radius: 4px; font-style: normal; }
 /* Replay: hide the driving HUD, keep the banner. */
 body.replaying .hud, body.replaying .lap-hud, body.replaying .minimap, body.replaying .hint, body.replaying .toast { display: none; }
+
+/* Garage / car select */
+.garage { position: fixed; inset: 0; pointer-events: none; font-family: var(--sans); }
+.garage button { pointer-events: auto; font: inherit; color: inherit; cursor: pointer; }
+.garage-top { position: absolute; left: 32px; top: 24px; display: flex; align-items: baseline; gap: 16px; }
+.garage-top .logo { font: 800 italic 26px var(--sans); letter-spacing: 0.1em; }
+.garage-top .logo b { color: var(--accent); margin-left: 0.2em; }
+.garage-top .where { font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; opacity: 0.6; }
+.garage-info { position: absolute; left: 32px; top: 90px; width: min(380px, 40vw); }
+.car-class { font-size: 12px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--accent); }
+.car-name { margin: 6px 0 10px; font: 800 italic 38px/1.05 var(--sans); }
+.car-story { margin: 0 0 18px; font-size: 14px; line-height: 1.5; opacity: 0.78; }
+.car-specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 12px; margin-bottom: 18px; }
+.car-specs div { background: rgba(255,255,255,0.05); border-radius: 6px; padding: 7px 9px; }
+.car-specs span { display: block; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; opacity: 0.55; }
+.car-specs b { font: 700 16px var(--mono); }
+.bar-row { display: grid; grid-template-columns: 100px 1fr; align-items: center; gap: 10px; margin: 6px 0; }
+.bar-row span { font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; opacity: 0.7; }
+.bar-row .bar { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+.bar-row .bar i { display: block; height: 100%; background: linear-gradient(90deg, #ff8a3d, var(--accent)); transition: width 0.4s; }
+.garage-bottom { position: absolute; left: 32px; right: 32px; bottom: 28px; display: flex; align-items: center; gap: 28px; }
+.paint-picker { display: flex; align-items: center; gap: 12px; }
+.swatches { display: flex; gap: 8px; }
+.swatch { width: 30px; height: 30px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.25); padding: 0; }
+.swatch.selected { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,90,31,0.6); }
+.paint-name { font-size: 13px; opacity: 0.8; min-width: 180px; }
+.car-nav { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.nav { background: rgba(255,255,255,0.08); border: 0; border-radius: 50%; width: 40px; height: 40px; font-size: 14px; }
+.nav:hover { background: rgba(255,255,255,0.18); }
+.dots { display: flex; gap: 6px; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.25); }
+.dots i.on { background: var(--accent); }
+.drive { background: var(--accent); border: 0; border-radius: 6px; padding: 12px 28px; font: 800 italic 18px var(--sans) !important; letter-spacing: 0.1em; text-transform: uppercase; color: #111 !important; }
+.drive:hover { filter: brightness(1.1); }
+.garage-hint { position: absolute; right: 32px; top: 28px; font: 12px var(--mono); opacity: 0.5; }
+@media (max-width: 900px) {
+  .garage-info { width: auto; right: 32px; }
+  .car-story, .car-bars { display: none; }
+  .garage-bottom { flex-wrap: wrap; }
+}

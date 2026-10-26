@@ -144,12 +144,11 @@ export class VehicleEffects {
   }
 
   private exhaustFlame(v: Vehicle, strength: number): void {
-    const [, , hz] = v.config.chassis.halfExtents;
     this.q.copy(v.body.rotation() as THREE.Quaternion);
     const p = v.body.translation();
     const lv = v.body.linvel();
-    for (const sx of [-0.42, 0.42]) {
-      this.tmp.set(sx, 0.32, hz + 0.05).applyQuaternion(this.q).add(p as THREE.Vector3);
+    for (const [ex, ey, ez] of v.config.visual.exhausts) {
+      this.tmp.set(ex, ey, ez + 0.06).applyQuaternion(this.q).add(p as THREE.Vector3);
       this.tmp2.set(0, 0, 1).applyQuaternion(this.q); // backwards out of the pipe
       const n = Math.round(6 + strength * 10);
       for (let i = 0; i < n; i++) {

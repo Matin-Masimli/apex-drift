@@ -25,6 +25,8 @@ export class LapHud {
   private readonly mapCtx: CanvasRenderingContext2D;
   private readonly mapPath: Path2D;
   private readonly mapXform: { sx: number; ox: number; oz: number };
+  /** Root DOM elements, for removal when the session ends. */
+  get elements(): HTMLElement[] { return [this.el, this.toastEl, this.map]; }
 
   constructor(parent: HTMLElement, private readonly track: Track, private readonly timer: LapTimer) {
     this.el = document.createElement('div');

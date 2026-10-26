@@ -4,6 +4,7 @@ import type { Vehicle } from '../vehicles/Vehicle';
 /** Minimal M1 HUD: speed, gear, rev bar with shift light, aid indicators. M6 replaces the styling. */
 export class Hud {
   private readonly el: HTMLDivElement;
+  get element(): HTMLElement { return this.el; }
   private readonly speed: HTMLDivElement;
   private readonly gear: HTMLDivElement;
   private readonly revFill: HTMLDivElement;

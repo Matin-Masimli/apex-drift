@@ -9,6 +9,25 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import type { Environment } from './Environment';
 import { DEFAULT_QUALITY, QUALITY_PRESETS, type QualityPreset } from './quality';
 
+/** Three's own lights chunk, captured before any CSM instance swaps in its replacement. */
+const CORE_LIGHTS_BEGIN = THREE.ShaderChunk.lights_fragment_begin;
+
+/**
+ * The CSM addon (three r186) injects an outdated copy of `lights_fragment_begin` whose iridescence
+ * block still writes `material.iridescenceF0`, a field the core shader no longer has, so every
+ * iridescent material (pearl paint) fails to compile once CSM is active. Splice the core block back in.
+ */
+function patchCsmIridescence(): void {
+  const block = (src: string) => {
+    const i = src.indexOf('if ( material.iridescence > 0.0 ) {');
+    return [i, i < 0 ? -1 : src.indexOf('#endif', i)];
+  };
+  const csm = THREE.ShaderChunk.lights_fragment_begin;
+  const [ci, cj] = block(csm), [oi, oj] = block(CORE_LIGHTS_BEGIN);
+  if (ci < 0 || cj < 0 || oi < 0 || oj < 0 || csm === CORE_LIGHTS_BEGIN) return;
+  THREE.ShaderChunk.lights_fragment_begin = csm.slice(0, ci) + CORE_LIGHTS_BEGIN.slice(oi, oj) + csm.slice(cj);
+}
+
 /**
  * Radial "speed blur": samples along the vector from the screen centre, strongest at the edges.
  * A cheap stand-in for per-object motion blur that sells speed in a chase view.
@@ -50,7 +69,6 @@ const SpeedBlurShader = {
  * plus cascaded shadow maps for the sun, and live-switchable quality presets.
  */
 export class Graphics {
-  readonly renderer: THREE.WebGLRenderer;
   preset: QualityPreset;
   presetIndex = DEFAULT_QUALITY;
   private csm: CSM | null = null;
@@ -68,9 +86,14 @@ export class Graphics {
   /** Supplies the sun direction/colour for the shadow cascades. */
   env: Environment | null = null;
 
-  constructor(container: HTMLElement, private readonly scene: THREE.Scene) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-    const r = this.renderer;
+  constructor(readonly renderer: THREE.WebGLRenderer, private readonly scene: THREE.Scene, presetIndex = DEFAULT_QUALITY) {
+    this.presetIndex = presetIndex;
+    this.preset = QUALITY_PRESETS[this.presetIndex];
+  }
+
+  /** Create the single WebGL renderer the whole app shares (garage and driving). */
+  static createRenderer(container: HTMLElement): THREE.WebGLRenderer {
+    const r = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
     r.setSize(window.innerWidth, window.innerHeight);
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.toneMapping = THREE.ACESFilmicToneMapping;
@@ -79,7 +102,15 @@ export class Graphics {
     // Post-processing issues many render calls per frame; count them all and reset once per frame.
     r.info.autoReset = false;
     container.appendChild(r.domElement);
-    this.preset = QUALITY_PRESETS[this.presetIndex];
+    return r;
+  }
+
+  /** Release GPU resources owned by the pipeline (the renderer itself is shared and kept). */
+  dispose(): void {
+    if (this.csm) { this.csm.remove(); this.csm.dispose(); this.csm = null; }
+    this.composer?.dispose();
+    this.gtao?.dispose();
+    this.bloom?.dispose();
   }
 
   /** Bind the camera the pipeline renders with (rebuilds camera-dependent passes). */
@@ -114,6 +145,7 @@ export class Graphics {
       lightMargin: 120,
       shadowBias: -0.0002,
     });
+    patchCsmIridescence();
     this.csm.fade = p.shadowCascades > 1;
     for (const light of this.csm.lights) light.shadow.normalBias = 0.04;
     this.setupMaterials();

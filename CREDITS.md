@@ -8,7 +8,7 @@ runtime ([src/rendering/proceduralTextures.ts](src/rendering/proceduralTextures.
 
 | Package | Version | License | Source | Used for |
 |---|---|---|---|---|
-| three | 0.186.1 | MIT | https://github.com/mrdoob/three.js | Rendering. Includes these addons from `three/examples/jsm` (same MIT license): `Sky`, `RoundedBoxGeometry`, `CSM`, `EffectComposer`, `RenderPass`, `GTAOPass`, `UnrealBloomPass`, `ShaderPass`, `OutputPass` and `BufferGeometryUtils`. |
+| three | 0.186.1 | MIT | https://github.com/mrdoob/three.js | Rendering. Includes these addons from `three/examples/jsm` (same MIT license): `Sky`, `RoundedBoxGeometry`, `CSM`, `EffectComposer`, `RenderPass`, `GTAOPass`, `UnrealBloomPass`, `ShaderPass`, `OutputPass`, `BufferGeometryUtils`, `RoomEnvironment` and `BokehPass`. |
 | @dimforge/rapier3d-compat | 0.21.0 | Apache-2.0 | https://github.com/dimforge/rapier | Rigid-body physics, collision, ray casts |
 
 ## Development dependencies (not shipped)
@@ -28,5 +28,6 @@ runtime ([src/rendering/proceduralTextures.ts](src/rendering/proceduralTextures.
 - Bicycle-model yaw-rate reference for stability control: standard vehicle-dynamics texts.
 - Centripetal Catmull-Rom parameterisation and Barry–Goldman evaluation: standard spline literature.
 
-All track names, circuit layouts, sponsor names on billboards ("Voltar Fuels", "Northwind Tyres") and car
-names are invented for this project.
+All names are invented for this project. That includes track names and circuit layouts, car makes and models
+(Nimbus, Aurel, Talvi, Harlan, Seraph, Strale) and sponsor names (Voltar, Northwind, Tundra Oil). All car bodies are
+generated procedurally from each car's own dimensions; no real vehicle is modelled or referenced.

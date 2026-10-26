@@ -154,7 +154,10 @@ export class Powertrain {
         // Friction torque toward zero slip, smoothed over a small band (8 rad/s) to avoid chatter.
         const tc = capacity * clamp(slip / 8, -1, 1);
         const next = omegaE + (h * (te - tc)) / e.inertia;
-        if (sign(next - omegaClutchOut) !== sign(slip) || Math.abs(slip) < 0.5) {
+        // Lock only when the speeds match *and* the driveline alone keeps the engine above idle;
+        // otherwise a slow car could drag the engine down and lock it into a stall.
+        const aboveIdle = Math.abs(omegaClutchOut) * RAD_TO_RPM >= e.idleRpm;
+        if (aboveIdle && (sign(next - omegaClutchOut) !== sign(slip) || Math.abs(slip) < 0.5)) {
           // Speeds matched within this sub-step: lock the clutch.
           omegaE = omegaClutchOut;
           this.clutchLocked = true;

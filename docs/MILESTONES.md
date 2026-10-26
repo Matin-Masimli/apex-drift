@@ -191,3 +191,95 @@ The 1080p, mid-range-GPU target from the spec has not been measured. That is par
 - Car paint with clearcoat and metallic flake, plus 4 colours and 1 livery per car.
 - Working headlights for sunset.
 - Showroom car select with a rotating 3D view, stat bars and depth of field.
+
+---
+
+## M3: Six-car roster, procedural models, garage ✅
+
+**Runs:**
+- `npm run dev` opens the garage. Pick a car and paint, press Drive, and Esc returns.
+- `npm test` passes: bench for all six cars, track build, and one autopilot lap per car.
+- `npm run build` passes.
+
+### What was done
+
+**Roster** ([src/vehicles/cars](../src/vehicles/cars)). Six original cars. Each has its own suspension, tyres, engine curve, gearing, diffs, aero and default aids:
+
+| Car | Layout | Power | 0–100 | Top speed | 100–0 | Max lat g | 0–100 gravel |
+|---|---|---|---|---|---|---|---|
+| Nimbus Ziva RS (hatch) | FWD | 209 hp | 6.1 s | 235 | 36.8 m | 1.03 | 9.6 s |
+| Aurel Meridian GT-E (GT) | RWD | 536 hp | 3.6 s | 298 | 29.2 m | 1.26 | 6.6 s |
+| Talvi RX4 (rally) | AWD | 297 hp | 4.3 s | 236 | 40.1 m | 0.97 | **5.0 s** |
+| Harlan Stampede 7.4 (muscle) | RWD | 561 hp | 5.6 s | 293 | 41.6 m | 0.90 | 11.6 s |
+| Seraph Vanta (hyper) | RWD | 1,050 hp | 3.9 s | **424** | 35.3 m | 1.20 | 8.5 s |
+| Strale FX-9 (formula) | RWD | 667 hp | **3.1 s** | 309 | **23.3 m** | **2.24** | 7.7 s |
+
+The numbers back up the brief:
+- The formula car corners and brakes hardest; at 2.24 g, downforce is doing the work.
+- The hypercar is fastest in a straight line, and without TC it takes 6.8 s to 100 (wheelspin).
+- The rally car is the gravel specialist.
+- The muscle car has the least grip and a tight diff for drifting.
+- The hatch is the forgiving starter.
+
+**Procedural bodies** ([src/rendering/cars](../src/rendering/cars))
+- A loft builder sweeps superellipse cross-sections along the car.
+- Wheel arches are cut as circles in the floor profile.
+- A second loft forms the greenhouse, split by face into glass and painted roof/pillars.
+- Six class builders:
+  - GT: fastback, pylon wing, splitter, diffuser.
+  - Rally: tall hatch, four-lamp pod, arch flares, mud flaps, roof scoop and spoiler.
+  - Muscle: long hood, notchback, quad lamps, chrome bumpers, hood scoop, ducktail.
+  - Hyper: cab-forward teardrop, side intakes, active wing, louvres, big diffuser.
+  - Hatch: upright tail, roof spoiler.
+  - Formula: tub, side pods, front/rear wings, halo, wishbones.
+- Proportions come from each car's physics dimensions.
+- Separate meshes for body, wheels (lathe-profiled tyres, class-specific rims), calipers, steering wheel (turns with the front wheels) and lights.
+- Static parts are merged by material, so a full car costs around 12–15 draw calls.
+
+**Paint** ([materials.ts](../src/rendering/cars/materials.ts))
+- Clear-coated metallic paint, with a flake normal map on the base layer only, so the clear coat stays glossy.
+- Pearl (iridescent) and matte finishes.
+- Four paints plus one livery per car (24 paints and 6 liveries in total).
+- Liveries are drawn on a canvas in the body's UV space:
+  - endurance stripes, chevrons, rally bands, twin stripes and two-tone split patterns;
+  - race-number roundels and invented sponsor text, readable on both sides.
+- Brake lights, plus headlights with real spot lights (L key, automatic at sunset).
+
+**Garage** ([Showroom.ts](../src/ui/Showroom.ts))
+- Studio scene with RoomEnvironment reflections, a glossy floor and a rotating turntable with a glow ring.
+- Soft key-light shadow, rim light, and subtle depth of field (BokehPass).
+- Panel content:
+  - class, name and backstory;
+  - power, torque, weight and drive layout;
+  - top speed (derived from gearing and drag);
+  - 0–100, measured by actually simulating the car headless.
+- Rating bars, paint swatches, car carousel, keyboard and drag controls, and the last selection remembered.
+
+**App structure**
+- One shared WebGL renderer.
+- `DriveSession` owns a level, car and loop, and disposes everything (scene, physics, DOM) on exit.
+- `main.ts` is now a small state machine: boot → garage ⇄ drive.
+- Verified in the browser: garage → drive → Esc → garage → drive a different car. No HUD left behind, all shader programs compile.
+
+### Bugs found and fixed during M3
+
+- **Clutch could lock below idle.** The clutch locked whenever engine and driveline speeds matched, including below idle. On gravel the hatch's engine was dragged down and locked into an unrecoverable 8 rpm stall. Locking now requires the driveline to be turning at least idle speed.
+- **TC and ABS ignored surface.** They judged slip against the tyre's asphalt peak, but loose surfaces stretch the peak, so on gravel TC strangled the throttle. Both now normalise by the surface-adjusted peak.
+- **Skid-pad test wasn't comparable between cars.** The fixed-steer test asked the muscle car for ~1.6 g and it spun. It was replaced with a closed-loop circle test, whose first version had its lookahead behind the car (also caught and fixed).
+- **CSM addon broke pearl paint.** The CSM addon in three r186 injects a stale shader chunk that writes a removed field (`material.iridescenceF0`), so pearl paint failed to compile and rendered black. Graphics now splices the core iridescence block back into the CSM chunk.
+
+### Known issues
+
+- **Pace and feel unverified.** Everything was checked in a hidden, throttled preview pane and by headless tests. Real-time driving feel per car, and 1080p frame rate, still need a human drive.
+- **Wishbones are static.** The formula car's wishbones sit at static ride height; at full suspension travel they can visibly disconnect from the wheels by a few cm.
+- **Livery coverage.** Liveries cover the main body only; roofs and wings take the livery base colour. The same UV layout means stripes narrow slightly toward the nose and tail.
+- **Headlight cost.** Headlights are two spot lights per car. That is fine for one car, but AI fields in M4 should use them only on the player car or a cheaper fake.
+- **No showroom bloom.** The turntable ring glows via its emissive colour only.
+- **Large bundle.** The bundle is still 5.1 MB (1.88 MB gzipped), mostly Rapier's inline WASM (M6).
+
+### Next (M4)
+
+- AI drivers: racing line from the track spline, braking points from curvature and per-car grip, overtaking, avoidance, rubber-banding toggle.
+- Quick Race (3–7 opponents, Easy/Medium/Hard) with positions, a results podium and multi-car replays.
+- Time Trial with a ghost of the best lap, built on the snapshot recorder.
+- A mode select screen between the garage and the track.

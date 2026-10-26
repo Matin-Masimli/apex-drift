@@ -1,11 +1,12 @@
 /**
  * Headless lap test: a simple pure-pursuit autopilot drives laps of a circuit with the full
  * vehicle sim, verifying the track is drivable (no snags or falls) and that lap timing works.
- *   npx tsx scripts/track-lap-test.ts [laps]
+ *   npx tsx scripts/track-lap-test.ts [laps] [car-id | all]
  */
 import { initPhysics, PhysicsWorld } from '../src/physics/PhysicsWorld';
 import { Vehicle } from '../src/vehicles/Vehicle';
-import { meridianGT } from '../src/vehicles/cars/meridianGT';
+import { CARS, getCar } from '../src/vehicles/cars';
+import type { CarConfig } from '../src/vehicles/types';
 import { neutralInput } from '../src/vehicles/types';
 import { Track } from '../src/tracks/Track';
 import { LapTimer } from '../src/tracks/LapTimer';
@@ -15,13 +16,20 @@ import { clamp, MS_TO_KMH, Vec3 } from '../src/core/math';
 const DT = 1 / 120;
 await initPhysics();
 const track = new Track(kestrelValley);
+const laps = Number(process.argv[2] ?? 2);
+const which = process.argv[3] ?? 'meridian-gte';
+const cars: CarConfig[] = which === 'all' ? CARS : [getCar(which)];
+let failed = false;
+
+for (const cfg of cars) {
+console.log(`--- ${cfg.name}`);
 const physics = new PhysicsWorld(DT);
 track.buildPhysics(physics);
-const car = new Vehicle(physics, meridianGT, track.grid[0]);
+const car = new Vehicle(physics, cfg, track.grid[0]);
 const timer = new LapTimer(track);
 timer.startNow();
-
-const laps = Number(process.argv[2] ?? 2);
+// Corner speed target from the car's own grip (roughly its lateral g on a skid pad).
+const gripG = Math.min(cfg.tires.front.muLat, cfg.tires.rear.muLat) * 0.68;
 const tmp = { index: 0, lateral: 0, distSq: 0 };
 const fwd = new Vec3(), right = new Vec3();
 let t = 0, maxLat = 0, minY = Infinity, topSpeed = 0;
@@ -41,7 +49,7 @@ while (timer.lapsCompleted < laps && t < 400) {
   let maxK = 0;
   const look = Math.round((20 + v * v / 18) / track.line.spacing);
   for (let k = 0; k < look; k++) maxK = Math.max(maxK, Math.abs(track.line.samples[(tmp.index + k) % n].curvature));
-  const target = Math.min(85, Math.sqrt((1.05 * 9.81) / Math.max(maxK, 1e-4)));
+  const target = Math.min(85, Math.sqrt((gripG * 9.81) / Math.max(maxK, 1e-4)));
   const err = target - car.forwardSpeed;
   const input = { ...neutralInput(), steer: clamp(angle * 3, -1, 1), throttle: clamp(err * 0.4, 0, 1), brake: clamp(-err * 0.15, 0, 1) };
   car.step(input, DT);
@@ -56,4 +64,7 @@ while (timer.lapsCompleted < laps && t < 400) {
   topSpeed = Math.max(topSpeed, car.forwardSpeed * MS_TO_KMH);
 }
 console.log(`time ${t.toFixed(1)} s, laps ${timer.lapsCompleted}, best ${timer.bestLapTime?.toFixed(3)}, max lateral ${maxLat.toFixed(1)} m, min y ${minY.toFixed(2)}, top ${topSpeed.toFixed(0)} km/h`);
-if (timer.lapsCompleted < laps) { console.error('FAILED: did not complete laps'); process.exit(1); }
+if (timer.lapsCompleted < laps) { console.error(`FAILED: ${cfg.name} did not complete ${laps} laps`); failed = true; }
+physics.dispose();
+}
+if (failed) process.exit(1);

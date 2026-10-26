@@ -12,7 +12,7 @@
     "sim:headless": "tsx scripts/headless-sim.ts",
     "track:info": "tsx scripts/track-info.ts",
     "test:lap": "tsx scripts/track-lap-test.ts",
-    "test": "tsc --noEmit && tsx scripts/headless-sim.ts && tsx scripts/track-info.ts && tsx scripts/track-lap-test.ts 2"
+    "test": "tsc --noEmit && tsx scripts/headless-sim.ts && tsx scripts/track-info.ts && tsx scripts/track-lap-test.ts 1 all"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

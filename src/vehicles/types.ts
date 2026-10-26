@@ -149,6 +149,53 @@ export interface CarConfig {
     tc: boolean;
     esc: boolean;
   };
+
+  /** Appearance. Pure data: the renderer builds the model procedurally from it. */
+  visual: CarVisualConfig;
+}
+
+export type BodyStyle = 'formula' | 'gt' | 'rally' | 'muscle' | 'hyper' | 'hatch';
+
+export interface PaintOption {
+  name: string;
+  color: number;
+  /** 0..1, default 0.5 (metallic paint). */
+  metalness?: number;
+  /** 0..1 base-coat roughness, default 0.35. */
+  roughness?: number;
+  /** Metallic flake sparkle strength under the clear coat (0 = solid paint). */
+  flake?: number;
+  /** Colour-shift pearl effect (thin-film iridescence). */
+  pearl?: boolean;
+  /** Satin/matte finish: no clear coat. */
+  matte?: boolean;
+}
+
+export interface LiveryDef {
+  name: string;
+  /** Base colour. */
+  base: number;
+  /** Accent colours, in pattern order. */
+  accents: number[];
+  pattern: 'stripes' | 'split' | 'chevron' | 'rally' | 'endurance';
+  /** Race number shown on the doors. */
+  number: number;
+  /** Sponsor text along the sides (invented names only). */
+  sponsor?: string;
+}
+
+export interface CarVisualConfig {
+  style: BodyStyle;
+  /** Exactly four paint options; the livery is offered as a fifth choice. */
+  paints: PaintOption[];
+  livery: LiveryDef;
+  /** Rim colour and finish. */
+  rims: { color: number; metalness: number };
+  caliperColor: number;
+  /** Steering-wheel rotation per radian of road-wheel angle. */
+  steeringRatio: number;
+  /** Exhaust outlet positions in the car frame (flame effects). */
+  exhausts: [number, number, number][];
 }
 
 /** Driver controls for one physics step. The sim smooths and limits these itself. */

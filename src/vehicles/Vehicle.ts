@@ -4,6 +4,7 @@ import { Surface, SURFACES } from '../physics/surfaces';
 import { approach, clamp, DEG, Quat, sign, Vec3, type V3 } from '../core/math';
 import { Powertrain, splitDiff, type PowertrainOutput } from './Powertrain';
 import type { AxleSuspension, CarConfig, DriverInput, WheelConfig } from './types';
+import { wheelLayout } from './layout';
 
 /** Wheel sub-steps per physics step. 8 × 120 Hz = 960 Hz wheel integration. */
 const SUBSTEPS = 8;
@@ -190,25 +191,13 @@ export class Vehicle {
     this.aids = { ...c.aids };
     this.powertrain = new Powertrain(c);
 
-    // --- Wheels: positions derived from geometry, mount height from static sag ---
-    const g = c.geometry;
-    const zF = -g.wheelbase / 2;
-    const zR = g.wheelbase / 2;
-    const frontStatic = (c.chassis.mass * GRAVITY * c.chassis.weightFront) / 2;
-    const rearStatic = (c.chassis.mass * GRAVITY * (1 - c.chassis.weightFront)) / 2;
-    const mk = (i: number, front: boolean, side: -1 | 1) => {
-      const susp = front ? c.suspension.front : c.suspension.rear;
-      const wheel = front ? c.wheels.front : c.wheels.rear;
-      const w = new WheelState(i, front, side, wheel, susp, front ? c.tires.front : c.tires.rear);
-      // Mount so that, at rest under static load, the wheel centre sits exactly at y = radius
-      // (i.e. the car sits at its design ride height with the chassis origin on the ground).
-      const sag = Math.min((front ? frontStatic : rearStatic) / susp.stiffness, susp.maxCompression * 0.8);
-      const y = wheel.radius + susp.restLength - sag;
-      const track = front ? g.trackFront : g.trackRear;
-      w.mountLocal.set((side * track) / 2, y, front ? zF : zR);
+    // --- Wheels: positions derived from geometry, mount height from static sag (see layout.ts) ---
+    this.wheels = wheelLayout(c).map(l => {
+      const w = new WheelState(l.index, l.isFront, l.lateral, l.wheel, l.isFront ? c.suspension.front : c.suspension.rear,
+        l.isFront ? c.tires.front : c.tires.rear);
+      w.mountLocal.set(l.mount.x, l.mount.y, l.mount.z);
       return w;
-    };
-    this.wheels = [mk(0, true, -1), mk(1, true, 1), mk(2, false, -1), mk(3, false, 1)];
+    });
 
     const dt = c.drivetrain;
     if (dt.layout === 'FWD') { this.wheels[0].driveShare = this.wheels[1].driveShare = 0.5; }
@@ -229,7 +218,7 @@ export class Vehicle {
       z: (m / 12) * ((2 * hx) ** 2 + (2 * hy) ** 2) * sz,
     };
     // weightFront = 1 puts the CoM on the front axle (z = -wb/2), 0 on the rear axle.
-    const com = { x: 0, y: c.chassis.cgHeight, z: g.wheelbase * (0.5 - c.chassis.weightFront) };
+    const com = { x: 0, y: c.chassis.cgHeight, z: c.geometry.wheelbase * (0.5 - c.chassis.weightFront) };
     const rot = new Quat().setFromAxisAngle({ x: 0, y: 1, z: 0 }, spawn.yaw);
 
     const bodyDesc = RAPIER.RigidBodyDesc.dynamic()
@@ -503,7 +492,10 @@ export class Vehicle {
 
     // Traction control: cut throttle when a driven wheel spins well past peak slip.
     let maxDrivenSlip = 0;
-    for (const w of this.wheels) if (w.driveShare > 0 && w.grounded) maxDrivenSlip = Math.max(maxDrivenSlip, w.slipRatio / w.tire.peakSlipRatio);
+    // Normalise by the *surface-stretched* peak: on gravel the tire legitimately runs more slip.
+    for (const w of this.wheels) {
+      if (w.driveShare > 0 && w.grounded) maxDrivenSlip = Math.max(maxDrivenSlip, w.slipRatio / (w.tire.peakSlipRatio * SURFACES[w.surface].peakSlipMul));
+    }
     // Proportional: the further past 1.3× peak slip, the more throttle is removed. Cuts fast, restores gently.
     const tcTarget = this.aids.tc ? clamp(1 - (maxDrivenSlip - 1.3) * 0.6, 0.25, 1) : 1;
     this.tcFactor = approach(this.tcFactor, tcTarget, (tcTarget < this.tcFactor ? 10 : 2.5) * dt);
@@ -532,7 +524,7 @@ export class Vehicle {
         // ABS: modulate pressure when the wheel locks well past the peak slip ratio.
         let brakeT = w.brakeTorque;
         if (this.aids.abs && brakeT > 0 && w.grounded && Math.abs(w.vLong) > 2) {
-          const lock = -w.slipRatio / w.tire.peakSlipRatio;
+          const lock = -w.slipRatio / (w.tire.peakSlipRatio * SURFACES[w.surface].peakSlipMul);
           w.absFactor = clamp(w.absFactor + (lock > 1.4 ? -18 : 10) * h, 0.1, 1);
           // The handbrake bypasses ABS (it's what you use to start a drift).
           const hb = !w.isFront ? this.appliedHandbrake * c.brakes.handbrakeTorque : 0;

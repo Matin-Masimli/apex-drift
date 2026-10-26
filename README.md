@@ -3,7 +3,8 @@
 An original 3D racing game demo built with **Three.js** (rendering), **Rapier** (rigid bodies and collision) and a
 **custom sim-cade vehicle model**, in TypeScript with Vite.
 
-> **Status: Milestone 2 of 6.** One car on the original Kestrel Valley circuit, with these in place:
+> **Status: Milestone 3 of 6.** A garage with six original cars, each distinct in look and handling,
+> driven on the original Kestrel Valley circuit, with these in place:
 >
 > - Full physics.
 > - Lap and sector timing with track limits.
@@ -37,7 +38,11 @@ npm run dev          # http://localhost:5173
 | `npm run test:lap` | Headless autopilot drives laps through the full physics and lap timer |
 | `npm test` | Type-check plus all of the above |
 
-Open `http://localhost:5173/?level=testpad` to drive the M1 test pad instead of the circuit.
+The game opens in the **garage**: pick a car and paint, then press Drive. Esc returns to the garage.
+
+Development URL shortcuts:
+- `?drive`: skip the garage. Combine with `&car=<id>&paint=<0-4>` to choose.
+- `?level=testpad`: drive the M1 test pad instead of the circuit.
 
 (The multiplayer server and its one-command `npm start` arrive in M5.)
 
@@ -56,6 +61,10 @@ Open `http://localhost:5173/?level=testpad` to drive the M1 test pad instead of 
 | Time of day (midday / sunset) | T | — |
 | Graphics preset (Low / Medium / High / Ultra) | G | — |
 | Hide controls hint | H | — |
+| Headlights (automatic at sunset) | L | — |
+| Back to garage | Esc | Start |
+
+**Garage:** ← → change car · ↑ ↓ change paint (the fifth option is the livery) · Enter drive · drag to rotate.
 | Toggle ABS / TC / ESC | 1 / 2 / 3 | — |
 | Debug overlay | F3 or ` | — |
 
@@ -73,8 +82,9 @@ src/
   tracks/      spline, track builder, lap timer,  ┘
                circuit data
   rendering/   graphics pipeline (CSM, post-fx, presets), environment, track and car visuals,
-               cameras, replay director, effects/
-  ui/          input, HUD, debug overlay
+               cars/ (procedural body builders, paint & livery), cameras, replay director, effects/
+  game/        drive session (level + car + loop)
+  ui/          input, garage/showroom, HUD, lap HUD, debug overlay, loading screen
   audio/ ai/ network/ assets/   (later milestones)
 server/        authoritative multiplayer server (M5)
 scripts/       headless bench, track info, autopilot lap test
@@ -103,13 +113,33 @@ All of this is in [src/vehicles/Vehicle.ts](src/vehicles/Vehicle.ts), [Powertrai
 - **Surfaces.** Asphalt, curb, grass, gravel and wet asphalt, each with its own grip, peak-slip stretch, rolling
   resistance and "sink" drag. Each car can also scale grip per surface.
 
+## The roster
+
+| Car | Class | Layout | Character |
+|---|---|---|---|
+| Nimbus Ziva RS | Hot hatch | FWD | Beginner-friendly: forgiving tyres, mild understeer, all aids on |
+| Aurel Meridian GT-E | GT endurance | RWD | Balanced and stable, high top speed |
+| Talvi RX4 | Rally | AWD | Long-travel suspension; gravel tyres grip 50% better on loose surfaces |
+| Harlan Stampede 7.4 | Muscle | RWD | 780 Nm, street tyres, tight LSD: loves to drift |
+| Seraph Vanta | Hypercar | RWD | 1,050 hp, highest top speed, snappy at the limit |
+| Strale FX-9 | Open-wheel formula | RWD | 730 kg, huge downforce: fastest through corners, least forgiving |
+
 ## Adding a new car
 
-1. Copy [src/vehicles/cars/meridianGT.ts](src/vehicles/cars/meridianGT.ts) to `src/vehicles/cars/<yourCar>.ts`, and
-   change `id`, `name` and the numbers. Every field is documented in [src/vehicles/types.ts](src/vehicles/types.ts).
-2. Register it in [src/vehicles/cars/index.ts](src/vehicles/cars/index.ts).
-3. Run `npm run sim:headless -- <id>` and check 0-100, top speed, braking and skid-pad g. Then drive it with
-   the debug overlay (F3) open.
+1. Copy any file in [src/vehicles/cars/](src/vehicles/cars) to `src/vehicles/cars/<yourCar>.ts`, and change `id`,
+   `name` and the numbers. Every field is documented in [src/vehicles/types.ts](src/vehicles/types.ts).
+2. The `visual` section sets how it looks:
+   - a body `style` (one of the six procedural builders);
+   - four paints (`flake`, `pearl` and `matte` finishes);
+   - a livery (pattern, colours, race number, invented sponsor text);
+   - rim and caliper colours;
+   - steering ratio and exhaust positions.
+3. The model's proportions come from the physics config itself: collider length and width, wheelbase, track and
+   wheel sizes. Changing the chassis changes the body.
+4. Register it in [src/vehicles/cars/index.ts](src/vehicles/cars/index.ts). It appears in the garage automatically,
+   with specs measured from its physics.
+5. Run `npm run sim:headless -- <id>` (0–100, top speed, braking, max lateral g, gravel) and
+   `npm run test:lap -- 1 <id>`. Then drive it with the debug overlay (F3) open.
 
 Tuning tips:
 

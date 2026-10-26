@@ -100,20 +100,41 @@ function testCar(cfg: CarConfig) {
     results[`100-0 km/h ${abs ? 'ABS' : 'no ABS'} (m)`] = Math.abs(car.body.translation().z - start).toFixed(1);
   }
 
-  // 4) Skid pad: hold speed with a proportional throttle, constant steer; report steady lateral g.
-  for (const targetKmh of [60, 120]) {
+  // 4) Max lateral grip: follow a 60 m-radius circle with a steering controller, ramp the target
+  //    speed slowly, and report the best lateral g sustained for 1 s while still on the circle.
+  //    Closed-loop, so cars with very different steering and balance are measured the same way.
+  {
     const { car, step } = spawn(cfg);
-    const target = targetKmh / MS_TO_KMH;
+    const R = 60, cx = R, cz = 0; // circle centre to the right of the start (clockwise, right turn)
+    let target = 10;
     car.body.setLinvel({ x: 0, y: 0, z: -target }, true);
     for (const w of car.wheels) w.omega = target / w.wheel.radius;
-    let latSum = 0, n = 0;
-    for (let i = 0; i < 120 * 12; i++) {
-      const err = target - car.forwardSpeed;
-      step({ ...neutralInput(), steer: 0.6, throttle: Math.max(0, Math.min(1, err * 0.5 + 0.2)), brake: err < -2 ? 0.3 : 0 });
-      if (i > 120 * 8) { latSum += Math.abs(car.accelG.lat); n++; }
+    const window: number[] = [];
+    let best = 0, steerI = 0;
+    for (let i = 0; i < 120 * 90; i++) {
+      const p = car.body.translation();
+      const q = car.body.rotation();
+      // Pure pursuit toward a point 12 m ahead on the circle.
+      const ang = Math.atan2(p.z - cz, p.x - cx);
+      const aheadAng = ang + 12 / R; // direction of travel around the circle
+      const tx = cx + Math.cos(aheadAng) * R, tz = cz + Math.sin(aheadAng) * R;
+      const fx = -2 * (q.x * q.z + q.w * q.y), fz = -(1 - 2 * (q.x * q.x + q.y * q.y)); // local -Z in world
+      const rx = 1 - 2 * (q.y * q.y + q.z * q.z), rz = 2 * (q.x * q.z - q.w * q.y);     // local +X in world
+      const dx = tx - p.x, dz = tz - p.z;
+      const err = Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz);
+      steerI = Math.max(-0.5, Math.min(0.5, steerI + err * 0.002));
+      const steer = Math.max(-1, Math.min(1, err * 2.5 + steerI));
+      const vErr = target - car.forwardSpeed;
+      step({ ...neutralInput(), steer, throttle: Math.max(0, Math.min(1, vErr * 0.6 + 0.15)), brake: vErr < -3 ? 0.2 : 0 });
+      target += 0.45 / 120;
+      const radial = Math.hypot(p.x - cx, p.z - cz);
+      if (Math.abs(radial - R) > 4 || Math.abs(car.bodySlip) > 0.35) break; // left the circle or spun
+      window.push(Math.abs(car.accelG.lat));
+      if (window.length > 120) window.shift();
+      if (window.length === 120) best = Math.max(best, window.reduce((a, b) => a + b, 0) / 120);
     }
     assertFinite(car, 'skidpad');
-    results[`skidpad ${targetKmh} km/h lat g`] = (latSum / n).toFixed(2);
+    results['max lateral g (R60 circle)'] = best.toFixed(2);
   }
 
   // 5) Gravel launch: proves surfaces matter.

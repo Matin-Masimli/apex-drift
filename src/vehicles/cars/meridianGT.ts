@@ -78,4 +78,19 @@ export const meridianGT: CarConfig = {
   aero: { dragArea: 0.86, downforceArea: 2.1, balance: 0.43 },
 
   aids: { abs: true, tc: true, esc: false },
+
+  visual: {
+    style: 'gt',
+    paints: [
+      { name: 'Meridian Blue', color: 0x1d4fb8, flake: 0.6 },
+      { name: 'Racing Silver', color: 0xb8bcc2, metalness: 0.85, roughness: 0.3, flake: 0.8 },
+      { name: 'Signal Orange', color: 0xff5a14, metalness: 0.1, flake: 0 },
+      { name: 'Graphite Satin', color: 0x2a2d31, matte: true },
+    ],
+    livery: { name: 'Endurance No. 7', base: 0xf2f2ee, accents: [0x0d2f6b, 0xe01e2b], pattern: 'endurance', number: 7, sponsor: 'NORTHWIND' },
+    rims: { color: 0x2b2e33, metalness: 0.6 },
+    caliperColor: 0xe3a00f,
+    steeringRatio: 7.5,
+    exhausts: [[-0.55, 0.3, 2.3], [0.55, 0.3, 2.3]],
+  },
 };

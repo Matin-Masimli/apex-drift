@@ -8,7 +8,7 @@ import { neutralInput, type DriverInput } from '../vehicles/types';
 
 export type UiAction =
   | 'camera' | 'reset' | 'debug' | 'toggleAbs' | 'toggleTc' | 'toggleEsc' | 'toggleGearbox' | 'timeOfDay'
-  | 'quality' | 'replay' | 'hideHint';
+  | 'quality' | 'replay' | 'hideHint' | 'menu' | 'headlights';
 
 export interface KeyBindings {
   throttle: string[];
@@ -41,6 +41,8 @@ export const DEFAULT_KEYS: KeyBindings = {
     quality: ['KeyG'],
     replay: ['KeyP'],
     hideHint: ['KeyH'],
+    menu: ['Escape'],
+    headlights: ['KeyL'],
   },
 };
 
@@ -121,6 +123,7 @@ export class InputManager {
       if (edge(PAD.Y)) this.uiQueue.push('camera');
       if (edge(PAD.BACK)) this.uiQueue.push('reset');
       if (edge(PAD.X)) this.uiQueue.push('toggleGearbox');
+      if (edge(PAD.START)) this.uiQueue.push('menu');
     }
 
     inp.shiftUp = this.pendingShiftUp;

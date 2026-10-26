@@ -6,8 +6,8 @@
 |---|---|---|
 | M1 | One car on a test plane: full physics, debug overlay, headless bench | **Done** |
 | M2 | Original 2.75 km circuit, lap timing and sectors, replay cameras, graphics pipeline (IBL, CSM, post-fx, quality presets), effects | **Done** |
-| M3 | 6-car roster, procedural models, paints and liveries, showroom car select | Next |
-| M4 | AI drivers (racing line, braking, overtaking, rubber-banding), Quick Race, Time Trial with ghost | |
+| M3 | 6-car roster, procedural models, paints and liveries, showroom car select | **Done** |
+| M4 | AI drivers (racing line, braking, overtaking, rubber-banding), Quick Race, Time Trial with ghost | Next |
 | M5 | 2-player split-screen; online lobby (room codes, 2–8 players), authoritative server with prediction and reconciliation | |
 | M6 | Engine/tire/wind audio, generative music, UI polish, rebinding, performance pass | |
 
