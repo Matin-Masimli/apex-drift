@@ -41,7 +41,7 @@ export class CarVisual {
     const sw = new THREE.Group();
     const swInner = new THREE.Group();
     const r = body.steering.radius;
-    swInner.add(new THREE.Mesh(new THREE.TorusGeometry(r, 0.018, 8, 28), this.materials.interior));
+    swInner.add(new THREE.Mesh(new THREE.TorusGeometry(r, 0.018, 6, 20), this.materials.interior));
     for (const a of [Math.PI / 2, Math.PI * 7 / 6, -Math.PI / 6]) {
       const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.02, r, 0.012), this.materials.interior);
       spoke.position.set(Math.cos(a) * r / 2, Math.sin(a) * r / 2, 0);
@@ -49,10 +49,12 @@ export class CarVisual {
       swInner.add(spoke);
     }
     swInner.add(new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.03, 12).rotateX(Math.PI / 2), this.materials.carbon));
-    sw.add(swInner);
+    // One mesh per material for the whole wheel (rim, spokes, hub).
+    const swMerged = mergeByMaterial(swInner);
+    sw.add(swMerged);
     sw.position.copy(body.steering.pos);
     sw.rotation.x = -(Math.PI / 2 - body.steering.tilt);
-    this.steeringWheel = swInner;
+    this.steeringWheel = swMerged;
     this.root.add(sw);
 
     // Headlight spot lights (off by default; on for sunset and on request).
@@ -68,6 +70,14 @@ export class CarVisual {
 
     this.buildWheels(v.style);
     this.setPaint(paintIndex);
+    // Only parts that shape the car's silhouette cast shadows; small or enclosed parts sit inside the
+    // body's own shadow anyway. With 3–4 shadow cascades this removes most of a car's draw calls.
+    const m = this.materials;
+    const noShadow = new Set<THREE.Material>([m.interior, m.headlight, m.taillight, m.grille, m.chrome, m.dark, m.caliper, m.disc]);
+    this.root.traverse(o => {
+      const mesh = o as THREE.Mesh;
+      if (mesh.isMesh && noShadow.has(mesh.material as THREE.Material)) mesh.castShadow = false;
+    });
   }
 
   private buildWheels(style: BodyStyle): void {
@@ -83,7 +93,7 @@ export class CarVisual {
       spin.add(new THREE.Mesh(tireGeometry(R, W), m.rubber));
       const rimR = R * (style === 'formula' ? 0.62 : style === 'rally' ? 0.68 : 0.74);
       // Rim barrel and face.
-      spin.add(new THREE.Mesh(new THREE.CylinderGeometry(rimR, rimR, W * 0.92, 28, 1, true).rotateZ(Math.PI / 2), m.rim));
+      spin.add(new THREE.Mesh(new THREE.CylinderGeometry(rimR, rimR, W * 0.92, 20, 1, true).rotateZ(Math.PI / 2), m.rim));
       const face = new THREE.CylinderGeometry(rimR * 0.22, rimR * 0.22, 0.05, 16).rotateZ(Math.PI / 2);
       const hub = new THREE.Mesh(face, m.rim);
       hub.position.x = side * W * 0.36;
@@ -129,6 +139,29 @@ export class CarVisual {
     const v = this.config.visual;
     if (index === LIVERY_INDEX) applyLivery(this.materials, v.livery, v.paints[0]);
     else applyPaint(this.materials, v.paints[index] ?? v.paints[0]);
+  }
+
+  /** Render as a translucent ghost (time-trial best lap): no shadows, no depth writes. */
+  setGhost(): void {
+    this.root.traverse(o => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = mesh.receiveShadow = false;
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const m of mats) {
+        m.transparent = true;
+        m.opacity = 0.32;
+        m.depthWrite = false;
+      }
+      mesh.renderOrder = 5;
+    });
+    this.setHeadlights(false);
+  }
+
+  /** CSS colour of the current paint (for the minimap and standings). */
+  get paintCss(): string {
+    const c = this.paintIndex === LIVERY_INDEX ? this.config.visual.livery.base : this.config.visual.paints[this.paintIndex]?.color ?? 0xffffff;
+    return `#${c.toString(16).padStart(6, '0')}`;
   }
 
   setHeadlights(on: boolean): void {
@@ -192,7 +225,7 @@ function tireGeometry(R: number, W: number): THREE.BufferGeometry {
   pts.push(new THREE.Vector2(R - shoulder, hw));
   pts.push(new THREE.Vector2(bead, hw * 0.92));
   // Lathe revolves around +Y; lay the axle along X.
-  const g = new THREE.LatheGeometry(pts, 40).rotateZ(Math.PI / 2);
+  const g = new THREE.LatheGeometry(pts, 28).rotateZ(Math.PI / 2);
   g.computeVertexNormals();
   return g;
 }

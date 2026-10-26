@@ -33,8 +33,12 @@ export class LapTimer {
   progress = 0;
   /** Signed lateral offset from the centreline (+ right). */
   lateral = 0;
-  /** Laps * length + progress: monotonic race distance (for positions). */
-  get raceDistance(): number { return this.lapsCompleted * this.track.length + (this.lapRunning ? this.progress : this.progress - this.track.length); }
+  /**
+   * Continuous distance travelled along the track since the first update (m): integrates wrap-aware
+   * progress deltas, so it never jumps at the start line. Starting behind the line (on the grid)
+   * gives a small negative value. Race positions sort by this.
+   */
+  raceDistance = 0;
 
   private nextCheckpoint = 1;
   private sectorStart = 0;
@@ -87,6 +91,7 @@ export class LapTimer {
 
     if (!this.initialised) {
       this.initialised = true;
+      this.raceDistance = d > L / 2 ? d - L : d;
       // Next checkpoint is the first one ahead of the current position.
       this.nextCheckpoint = t.checkpointOffsets.findIndex(c => c > d);
       if (this.nextCheckpoint < 0) this.nextCheckpoint = t.checkpointOffsets.length;
@@ -102,6 +107,7 @@ export class LapTimer {
     const delta = d - prev;
     const crossedForward = delta < -L / 2;  // wrapped from ~L to ~0
     const crossedBackward = delta > L / 2;  // wrapped from ~0 to ~L
+    this.raceDistance += crossedForward ? delta + L : crossedBackward ? delta - L : delta;
 
     if (crossedBackward) {
       // Reversed over the line: lap no longer counts.

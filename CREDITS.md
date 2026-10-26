@@ -27,6 +27,9 @@ runtime ([src/rendering/proceduralTextures.ts](src/rendering/proceduralTextures.
 - Fixed-timestep accumulator with render interpolation: the widely documented "Fix Your Timestep" pattern.
 - Bicycle-model yaw-rate reference for stability control: standard vehicle-dynamics texts.
 - Centripetal Catmull-Rom parameterisation and Barry–Goldman evaluation: standard spline literature.
+- Racing line by curvature relaxation, after Rémi Coulom's K1999 approach (technique only).
+- Pure-pursuit path tracking: standard robotics / autonomous-driving literature.
+- AI driver names are invented.
 
 All names are invented for this project. That includes track names and circuit layouts, car makes and models
 (Nimbus, Aurel, Talvi, Harlan, Seraph, Strale) and sponsor names (Voltar, Northwind, Tundra Oil). All car bodies are

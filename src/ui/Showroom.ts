@@ -10,6 +10,8 @@ import { carSpecs } from '../vehicles/specs';
 import { SNAPSHOT_SIZE } from '../vehicles/snapshot';
 import type { CarClass, CarConfig } from '../vehicles/types';
 import { CarVisual, LIVERY_INDEX } from '../rendering/CarVisual';
+import type { GameMode } from '../game/DriveSession';
+import { ModeSelect } from './ModeSelect';
 
 const CLASS_LABEL: Record<CarClass, string> = {
   formula: 'Open-wheel formula',
@@ -27,8 +29,9 @@ const STORAGE_KEY = 'apexdrift.garage';
  * subtle depth of field, plus the car's story, measured specs, rating bars and paint choices.
  */
 export class Showroom {
-  /** Called when the player picks a car and presses Drive. */
-  onDrive: (carId: string, paintIndex: number) => void = () => {};
+  /** Called when the player picks a car, a mode, and starts. */
+  onDrive: (carId: string, paintIndex: number, mode: GameMode) => void = () => {};
+  private readonly modeSelect = new ModeSelect(document.body);
 
   private readonly scene = new THREE.Scene();
   private readonly camera = new THREE.PerspectiveCamera(30, 1, 0.1, 200);
@@ -136,6 +139,7 @@ export class Showroom {
   }
 
   hide(): void {
+    this.modeSelect.close();
     this.active = false;
     this.el.hidden = true;
     cancelAnimationFrame(this.raf);
@@ -211,13 +215,20 @@ export class Showroom {
     this.setPaint(Math.min(this.paint, LIVERY_INDEX));
   }
 
+  /** Open the mode select for the current car. */
+  private openModes(): void {
+    const cfg = CARS[this.index];
+    this.modeSelect.onStart = mode => this.onDrive(cfg.id, this.paint, mode);
+    this.modeSelect.show(cfg.id, cfg.name);
+  }
+
   private onKey(e: KeyboardEvent): void {
-    if (e.repeat) return;
+    if (e.repeat || this.modeSelect.open) return;
     if (e.code === 'ArrowRight' || e.code === 'KeyD') this.selectCar(this.index + 1, 0);
     else if (e.code === 'ArrowLeft' || e.code === 'KeyA') this.selectCar(this.index - 1, 0);
     else if (e.code === 'ArrowUp' || e.code === 'KeyW') this.setPaint((this.paint + LIVERY_INDEX) % (LIVERY_INDEX + 1));
     else if (e.code === 'ArrowDown' || e.code === 'KeyS') this.setPaint((this.paint + 1) % (LIVERY_INDEX + 1));
-    else if (e.code === 'Enter' || e.code === 'Space') this.onDrive(CARS[this.index].id, this.paint);
+    else if (e.code === 'Enter' || e.code === 'Space') this.openModes();
     else return;
     e.preventDefault();
     this.idle = 0;
@@ -245,7 +256,7 @@ export class Showroom {
     document.body.appendChild(el);
     el.querySelector('.prev')!.addEventListener('click', () => this.selectCar(this.index - 1, 0));
     el.querySelector('.next')!.addEventListener('click', () => this.selectCar(this.index + 1, 0));
-    el.querySelector('.drive')!.addEventListener('click', () => this.onDrive(CARS[this.index].id, this.paint));
+    el.querySelector('.drive')!.addEventListener('click', () => this.openModes());
     // Drag anywhere on the canvas to orbit.
     const canvas = this.renderer.domElement;
     canvas.addEventListener('pointerdown', e => { if (this.active) { this.dragging = true; this.lastX = e.clientX; } });

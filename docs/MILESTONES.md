@@ -283,3 +283,118 @@ The numbers back up the brief:
 - Quick Race (3–7 opponents, Easy/Medium/Hard) with positions, a results podium and multi-car replays.
 - Time Trial with a ghost of the best lap, built on the snapshot recorder.
 - A mode select screen between the garage and the track.
+
+---
+
+## M4: AI opponents, Quick Race, Time Trial with ghost ✅
+
+**Runs:**
+- `npm run dev`: garage → Drive → mode select → race.
+- `npm test` passes. It now includes headless AI races: an 8-car GT field, an 8-car mixed-class field on hard, and a 6-car easy hatch field, all with real collisions.
+- `npm run build` passes.
+
+### What was done
+
+**Racing line** ([src/ai/RacingLine.ts](../src/ai/RacingLine.ts))
+- A minimum-curvature line by K1999-style relaxation.
+- Its tightest radius is 23.3 m, against 19.2 m on the centreline, and it is 36 m shorter per lap.
+- An earlier "pull to the neighbours' midpoint" version minimised length instead, and hugged the hairpin at a *tighter* 12.4 m radius. It was replaced.
+
+**Speed profile** (per car and difficulty)
+- Corner limit with downforce: v²κ = μ(g + (c + κᵥ)v²), where κᵥ is the road's vertical curvature (crests lose grip).
+- Uses windowed curvature (margin for S-bends).
+- Wet-patch grip.
+- Friction-circle braking and acceleration passes.
+- Traction and power limits.
+
+**AI driver** ([src/ai/AIDriver.ts](../src/ai/AIDriver.ts))
+- Pure pursuit with yaw damping and countersteer.
+- Required-deceleration braking.
+- Progressive throttle that holds driven-wheel slip below peak (rate scaled by power-to-weight).
+- Traffic handling: passes only on straights or around obstacles, never in the wet, keeps side-by-side spacing, brakes for the car ahead, holds the grid lane at the start.
+- Rubber-banding toggle.
+- Stuck/backwards detection.
+
+**Race rules, headless** ([src/game/RaceSim.ts](../src/game/RaceSim.ts))
+- Grid, lights-out start, continuous race distance for positions.
+- Lap counting through the ordered checkpoints, finishing order.
+- Race closes 60 s after the leader or 30 s after the player.
+- Recovery that keeps race progress.
+- Mixed-class grids ordered by predicted pace.
+- The player's car drives its cool-down lap on autopilot.
+
+**Modes** ([src/game/DriveSession.ts](../src/game/DriveSession.ts))
+- **Quick Race:**
+  - Options: 3–7 opponents, difficulty, laps, field, catch-up.
+  - The player starts from the back.
+  - During the race: standings tower with gaps, position/lap counter, all cars on the minimap.
+  - At the finish: banner, results table (time, gap, best lap), podium with the top three parked and an orbiting camera.
+  - Actions: race again, watch replay (all cars), garage.
+- **Time Trial:**
+  - Timing from the line.
+  - The best clean lap becomes a ghost, recorded at 30 Hz (~280 KB) and saved to localStorage per car.
+  - A translucent ghost car plus a live ± delta at the same track position. The mode select shows your ghost time.
+- **Free Practice:** as before.
+- **Pause menu:** Resume / Restart / Garage. **Mode select** panel in the garage, remembering its settings.
+
+**Rendering costs**
+- Lower car tessellation: 13k triangles per car.
+- Merged steering wheel.
+- Small or enclosed parts no longer cast shadows.
+- An 8-car race on High went from 1,657 to ~1,000 draw calls per frame.
+
+### AI test results (headless, 12–16× real time)
+
+Hard difficulty, solo laps from the grid:
+
+| Car | Lap |
+|---|---|
+| Formula | 62.8 s |
+| GT | 78.4 s |
+| Hyper | 78.6 s |
+| Rally | 89 s |
+| Hatch | 94 s |
+| Muscle | 97 s |
+
+Every car is clean from either grid column. Typical full-field results:
+
+| Field | Recoveries |
+|---|---|
+| 8 GTs, 2 laps, medium | 0–3 |
+| 8 mixed classes, 2 laps | 1–3 |
+| 6 hatches, easy | 0 |
+| 8 muscle cars, 3 laps, hard | 9 (the deliberately tail-happy car) |
+
+### How the AI was tuned
+
+Each fix came from a reproducible headless trace:
+- **T1 snap:** stability control on for the AI.
+- **Over a crest:** vertical curvature added to the profile.
+- **Running wide in an S-bend under braking:** required-deceleration braking instead of flat-out braking.
+- **Power-on spins on straights:** throttle feeding.
+- **Weaving at 150 km/h:** pure-pursuit oscillation, fixed with a speed-scaled lookahead plus yaw damping.
+- **Pile-ups on the wet patch during passes:** no passing in the wet.
+- **Cars queuing behind wrecks:** obstacles can be passed anywhere.
+- **Launch collisions:** grid lane hold.
+
+### Bugs found and fixed during M4
+
+- **Race distance jumped at the start line.** `LapTimer.raceDistance` jumped back a full lap when grid cars first crossed the line, which would have scrambled positions. It is now an integrated, wrap-aware distance.
+- **Podium inside the grandstand.** The podium was first placed inside the main grandstand; it moved to the open side of the straight.
+
+### Known issues
+
+- **Muscle-car fields on hard.** Fields of muscle cars on hard still spin a few times per race (about one recovery per three car-laps).
+- **No slipstream or dirty air.** Passing relies on pace differences and braking zones.
+- **Recovery has no no-collide window.** A recovered car is placed on a free lateral slot, but it is not ghosted.
+- **Results timeout.** Race results classify cars still running 60 s after the leader by distance. A big field of slow cars in a mixed race can get cut off.
+- **Player lap timing excludes the grid run.** The player's lap 1 timing starts at the first line crossing (12 m from the grid); total race time does include it.
+- **Draw calls.** ~1,000 per frame on High with 8 cars bunched. A car-LOD and impostor pass is planned for M6.
+- **Pace and feel unverified.** Everything was again verified in a throttled preview pane and headless. AI pace and racecraft against a human, and 1080p frame rate, still need a human session.
+
+### Next (M5)
+
+- 2-player split-screen (keyboard + gamepad), with per-view cameras and a simplified shadow setup for the second view.
+- Online: Node `ws` authoritative server running `RaceSim` headless.
+- Room codes, lobby (car select, ready-up, host picks laps), 2–8 players.
+- Client-side prediction with server reconciliation, interpolation of remote cars, graceful disconnects (an AI takes over or the car is removed).

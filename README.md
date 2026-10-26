@@ -3,8 +3,15 @@
 An original 3D racing game demo built with **Three.js** (rendering), **Rapier** (rigid bodies and collision) and a
 **custom sim-cade vehicle model**, in TypeScript with Vite.
 
-> **Status: Milestone 3 of 6.** A garage with six original cars, each distinct in look and handling,
-> driven on the original Kestrel Valley circuit, with these in place:
+> **Status: Milestone 4 of 6.** A garage with six original cars, three game modes, and AI opponents on the
+> original Kestrel Valley circuit:
+>
+> - **Quick Race:** 3–7 AI opponents, Easy/Medium/Hard, 1–10 laps, same-car or mixed-class fields,
+>   optional catch-up. Positions, standings, results and a podium.
+> - **Time Trial:** a ghost of your best lap, saved per car, with a live delta.
+> - **Free Practice:** open track with lap timing.
+>
+> Also in place:
 >
 > - Full physics.
 > - Lap and sector timing with track limits.
@@ -36,12 +43,16 @@ npm run dev          # http://localhost:5173
 | `npm run sim:headless` | Runs the vehicle sim in Node (no browser) and prints a performance bench per car |
 | `npm run track:info` | Builds the circuit headless and prints its stats (length, elevation, radii, mesh sizes) |
 | `npm run test:lap` | Headless autopilot drives laps through the full physics and lap timer |
+| `npm run test:ai` | Headless AI races (same-car, mixed-class, easy field) with real collisions |
 | `npm test` | Type-check plus all of the above |
 
-The game opens in the **garage**: pick a car and paint, then press Drive. Esc returns to the garage.
+The game opens in the **garage**: pick a car and paint, press Drive, then choose a mode. Esc pauses
+(Resume / Restart / Garage).
 
 Development URL shortcuts:
-- `?drive`: skip the garage. Combine with `&car=<id>&paint=<0-4>` to choose.
+- `?drive`: skip the garage (free practice). Combine with `&car=<id>&paint=<0-4>` to choose.
+- `&mode=race`: quick race, with `&ai=5&laps=3&difficulty=medium&field=same|mixed`.
+- `&mode=tt`: time trial.
 - `?level=testpad`: drive the M1 test pad instead of the circuit.
 
 (The multiplayer server and its one-command `npm start` arrive in M5.)
@@ -62,7 +73,7 @@ Development URL shortcuts:
 | Graphics preset (Low / Medium / High / Ultra) | G | — |
 | Hide controls hint | H | — |
 | Headlights (automatic at sunset) | L | — |
-| Back to garage | Esc | Start |
+| Pause menu (Resume / Restart / Garage) | Esc | Start |
 
 **Garage:** ← → change car · ↑ ↓ change paint (the fifth option is the livery) · Enter drive · drag to rotate.
 | Toggle ABS / TC / ESC | 1 / 2 / 3 | — |
@@ -112,6 +123,41 @@ All of this is in [src/vehicles/Vehicle.ts](src/vehicles/Vehicle.ts), [Powertrai
   corrected with single-wheel braking).
 - **Surfaces.** Asphalt, curb, grass, gravel and wet asphalt, each with its own grip, peak-slip stretch, rolling
   resistance and "sink" drag. Each car can also scale grip per surface.
+
+## AI opponents
+
+All of this is headless ([src/ai](src/ai), [src/game/RaceSim.ts](src/game/RaceSim.ts)), so the M5 server runs the same races.
+
+**Racing line.** A minimum-curvature line, computed per track with a K1999-style relaxation (technique only):
+- Each point moves sideways until its curvature equals the average of its neighbours', within the track edges.
+- This gives a wide entry, late apex and wide exit with no per-corner authoring.
+
+**Speed profile per car.** Corner, braking and acceleration limits, computed from:
+- the car's grip and downforce;
+- crests and dips;
+- wet patches;
+- engine power;
+- driven-wheel traction.
+
+**Driver.** The AI uses the same controls as the player, with no physics cheats:
+- **Steering:** pure pursuit on the line, with yaw damping and countersteer.
+- **Braking:** brakes exactly as hard as the required deceleration demands, a = (v² − vₜ²) / 2d, which leaves grip for trail-braking.
+- **Throttle:** feeds power in and keeps the driven wheels below peak slip, which is what keeps 1,000 hp cars straight.
+
+**Traffic.**
+- **Passing:**
+  - Passes on straights only, on the side with room, and finishes a move it has started.
+  - Never passes on wet patches.
+  - A stopped car is driven around anywhere.
+- **Spacing:**
+  - Keeps ~0.9 m from a car alongside.
+  - Brakes for a slower car ahead.
+  - Holds its grid lane for the first 150 m.
+- **Rubber-banding (optional):** ±5% pace by gap to the player.
+- **Recovery:** a stuck or backwards car is put back on track.
+
+**Difficulty** sets the share of grip used (80/90/95%), reaction time and passing margin. Tail-happy cars can scale
+the AI's grip further via `ai.gripScale` in their config.
 
 ## The roster
 

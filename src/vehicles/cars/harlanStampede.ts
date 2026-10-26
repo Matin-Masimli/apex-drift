@@ -80,6 +80,9 @@ export const harlanStampede: CarConfig = {
 
   aids: { abs: true, tc: false, esc: false },
 
+  // The AI drives this tail-happy car a little further from the limit than the others.
+  ai: { gripScale: 0.92 },
+
   visual: {
     style: 'muscle',
     paints: [

@@ -12,7 +12,8 @@
     "sim:headless": "tsx scripts/headless-sim.ts",
     "track:info": "tsx scripts/track-info.ts",
     "test:lap": "tsx scripts/track-lap-test.ts",
-    "test": "tsc --noEmit && tsx scripts/headless-sim.ts && tsx scripts/track-info.ts && tsx scripts/track-lap-test.ts 1 all"
+    "test": "tsc --noEmit && tsx scripts/headless-sim.ts && tsx scripts/track-info.ts && tsx scripts/track-lap-test.ts 1 all && npm run test:ai",
+    "test:ai": "tsx scripts/ai-race-test.ts 1 medium meridian-gte 8 && tsx scripts/ai-race-test.ts 1 hard mixed 8 && tsx scripts/ai-race-test.ts 1 easy nimbus-ziva 6"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.21.0",

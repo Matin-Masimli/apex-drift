@@ -152,6 +152,12 @@ export interface CarConfig {
 
   /** Appearance. Pure data: the renderer builds the model procedurally from it. */
   visual: CarVisualConfig;
+
+  /** Optional AI tuning for cars that need it (all default to 1). */
+  ai?: {
+    /** Multiplies the share of grip the AI drives on: < 1 for tail-happy cars it would otherwise spin. */
+    gripScale?: number;
+  };
 }
 
 export type BodyStyle = 'formula' | 'gt' | 'rally' | 'muscle' | 'hyper' | 'hatch';

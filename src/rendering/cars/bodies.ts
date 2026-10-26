@@ -99,7 +99,7 @@ function closedBody(cfg: CarConfig, m: CarMaterials, spec: ClosedSpec, parts: Pa
   };
 
   // Main shell (paint, carries the livery).
-  const [shell] = loft(-hz, hz, 96, 48, z => ({
+  const [shell] = loft(-hz, hz, 72, 36, z => ({
     hw: halfWidth(z), y0: floor(z), y1: top(z), nTop: spec.nTop, nBot: spec.nBot, tumble: spec.tumble,
   }), { capStart: true, capEnd: true });
   parts.add(shell, m.paint, 0, 0, 0);
@@ -107,7 +107,7 @@ function closedBody(cfg: CarConfig, m: CarMaterials, spec: ClosedSpec, parts: Pa
   // Greenhouse: glass with painted roof, A/C pillars and B pillar.
   const c = spec.cabin;
   const cabinZ = (t: number) => c.z0 + (c.z1 - c.z0) * t;
-  const [glass, paint] = loft(c.z0, c.z1, 48, 40, z => ({
+  const [glass, paint] = loft(c.z0, c.z1, 32, 28, z => ({
     hw: Math.min(halfWidth(z) - 0.05, W2 * c.baseFrac) * (1 - 0.06 * (1 - smooth(c.z0, c.z0 + 0.4, z))),
     y0: top(z) - 0.06,
     y1: Math.max(top(z) + 0.01, profile(c.roof, z)),
@@ -316,7 +316,7 @@ function buildFormula(cfg: CarConfig, m: CarMaterials, parts: Parts): BodyBuild 
   const zN = -hz, zT = hz - 0.35;
   const layout = wheelLayout(cfg);
 
-  const tub = loft(zN, zT, 96, 40, z => ({
+  const tub = loft(zN, zT, 72, 28, z => ({
     hw: profile([[zN, 0.08], [zN + 0.55, 0.14], [-1.0, 0.26], [-0.3, 0.4], [0.6, 0.42], [1.5, 0.28], [zT, 0.16]], z),
     y0: profile([[zN, 0.2], [zN + 0.55, 0.16], [-1.0, 0.12], [zT, 0.14]], z),
     y1: profile([[zN, 0.32], [zN + 0.55, 0.42], [-1.0, 0.55], [-0.3, 0.62], [0.3, 0.66], [0.6, 0.92], [1.0, 0.86], [1.6, 0.6], [zT, 0.46]], z),
@@ -326,7 +326,7 @@ function buildFormula(cfg: CarConfig, m: CarMaterials, parts: Parts): BodyBuild 
 
   // Side pods.
   parts.both(s => {
-    const [pod] = loft(-0.5, 1.4, 40, 24, z => ({
+    const [pod] = loft(-0.5, 1.4, 24, 18, z => ({
       hw: profile([[-0.5, 0.2], [0, 0.26], [0.9, 0.2], [1.4, 0.08]], z),
       y0: 0.1,
       y1: profile([[-0.5, 0.46], [0.2, 0.52], [1.4, 0.26]], z),

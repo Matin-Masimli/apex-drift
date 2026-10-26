@@ -135,3 +135,64 @@ body.replaying .hud, body.replaying .lap-hud, body.replaying .minimap, body.repl
   .car-story, .car-bars { display: none; }
   .garage-bottom { flex-wrap: wrap; }
 }
+
+/* Race position + lap counter (top centre) */
+.race-pos { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); display: flex; gap: 26px; pointer-events: none;
+  background: var(--panel); border-radius: 8px; padding: 6px 18px; font-variant-numeric: tabular-nums; }
+.race-pos > div { display: flex; align-items: baseline; gap: 4px; }
+.race-pos small { font-size: 10px; letter-spacing: 0.2em; opacity: 0.6; margin-right: 6px; }
+.race-pos b { font: 800 italic 34px var(--sans); }
+.race-pos .p b { color: var(--accent); }
+.race-pos span { font-size: 16px; opacity: 0.7; }
+
+/* Standings tower (left) */
+.tower { position: fixed; left: 16px; top: 120px; width: 220px; pointer-events: none; font: 12px var(--mono); }
+.tower .row { display: grid; grid-template-columns: 20px 8px 1fr auto; gap: 8px; align-items: center; padding: 3px 8px; margin-bottom: 2px;
+  background: var(--panel); border-radius: 4px; }
+.tower .row i { font-style: normal; opacity: 0.7; text-align: right; }
+.tower .row s { width: 8px; height: 14px; border-radius: 2px; }
+.tower .row em { font-style: normal; opacity: 0.8; }
+.tower .row.me { background: rgba(255, 90, 31, 0.85); color: #111; }
+.tower .row.fin em { color: #8ff0a4; }
+.tower .row.me.fin em { color: #111; }
+
+/* Time trial delta */
+.delta { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); text-align: center; pointer-events: none;
+  background: var(--panel); border-radius: 8px; padding: 6px 18px; min-width: 160px; }
+.delta b { display: block; font: 800 30px var(--mono); }
+.delta small { font: 11px var(--mono); opacity: 0.7; }
+.delta.ahead b { color: #3dff7a; }
+.delta.behind b { color: #ff6060; }
+
+/* Modal overlays: pause, results, mode select */
+.overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(5, 6, 9, 0.55);
+  backdrop-filter: blur(3px); z-index: 5; }
+.overlay .panel { background: rgba(16, 18, 23, 0.96); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 22px 26px;
+  min-width: 300px; max-width: min(760px, 92vw); box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+.overlay h2 { margin: 0 0 16px; font: 800 italic 28px var(--sans); }
+.overlay h2 small { font: 13px var(--sans); opacity: 0.6; font-style: normal; margin-left: 10px; }
+.overlay .actions { display: flex; gap: 10px; margin-top: 18px; }
+.overlay button { font: 600 14px var(--sans); color: var(--ink); background: rgba(255,255,255,0.08); border: 0; border-radius: 6px;
+  padding: 10px 18px; cursor: pointer; }
+.overlay button:hover, .overlay button:focus-visible { background: rgba(255,255,255,0.16); outline: none; }
+.overlay button.primary { background: var(--accent); color: #111; }
+.results { width: 100%; border-collapse: collapse; font: 13px var(--mono); }
+.results th { text-align: left; font: 10px var(--sans); letter-spacing: 0.15em; text-transform: uppercase; opacity: 0.6; padding: 4px 8px; }
+.results td { padding: 6px 8px; border-top: 1px solid rgba(255,255,255,0.06); }
+.results td s { display: inline-block; width: 8px; height: 12px; border-radius: 2px; margin-right: 8px; vertical-align: -1px; }
+.results tr.me td { background: rgba(255, 90, 31, 0.18); }
+.mode-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.mode-card { text-align: left; display: flex; flex-direction: column; gap: 6px; padding: 14px !important; border: 2px solid transparent !important; }
+.mode-card b { font: 800 italic 18px var(--sans); }
+.mode-card span { font-size: 12px; opacity: 0.7; font-weight: 400; }
+.mode-card.selected { border-color: var(--accent) !important; background: rgba(255, 90, 31, 0.12) !important; }
+.race-options { display: grid; gap: 8px; margin-top: 16px; }
+.race-options label { display: grid; grid-template-columns: 110px 1fr; align-items: center; font-size: 12px; letter-spacing: 0.08em;
+  text-transform: uppercase; opacity: 0.9; }
+.seg { display: flex; gap: 4px; }
+.seg button { padding: 6px 12px !important; font-size: 13px !important; }
+.seg button.on { background: var(--accent) !important; color: #111 !important; }
+@media (max-width: 700px) { .mode-cards { grid-template-columns: 1fr; } }
+body.replaying .race-pos, body.replaying .tower, body.replaying .delta { display: none; }
+body.podium .hud, body.podium .lap-hud, body.podium .minimap, body.podium .hint, body.podium .toast,
+body.podium .race-pos, body.podium .tower, body.podium .delta { display: none; }
